@@ -128,18 +128,25 @@ if [ -d "$SCRIPT_DIR/fonts" ]; then
   echo -e "${GREEN}✅ 字体安装完成！${NC}"
 fi
 
-# 7. 重新部署与生效
-echo -e "${BLUE}🔄 触发 Rime 重新部署与配置生效...${NC}"
+# 7. 导入个人自造词与历史词频记忆
+if [ -d "$SCRIPT_DIR/sync" ]; then
+  echo -e "${BLUE}🧠 正在导入历史词频与自造词记忆...${NC}"
+  mkdir -p "$RIME_DIR/sync"
+  cp -rf "$SCRIPT_DIR/sync/"* "$RIME_DIR/sync/" 2>/dev/null || true
+  echo -e "${GREEN}✅ 词频快照就绪！${NC}"
+fi
+
+# 8. 重新部署与合并词频生效
+echo -e "${BLUE}🔄 触发 Rime 重新部署与词频合并...${NC}"
 if [ "$PLATFORM" = "macos" ]; then
   if [ -f "$SQUIRREL_APP/Contents/MacOS/Squirrel" ]; then
     "$SQUIRREL_APP/Contents/MacOS/Squirrel" --reload || true
+    "$SQUIRREL_APP/Contents/MacOS/Squirrel" --sync || true
   fi
 elif [ "$PLATFORM" = "linux" ]; then
-  # 如果存在 fcitx5 守护进程，发送重新加载信号
   if command -v fcitx5-remote >/dev/null 2>&1; then
     fcitx5-remote -r >/dev/null 2>&1 || true
   fi
-  # 兼容 ibus
   if [ -d "$HOME/.config/ibus/rime" ] && [ "$RIME_DIR" != "$HOME/.config/ibus/rime" ]; then
     cp -rf "$RIME_DIR/"* "$HOME/.config/ibus/rime/" 2>/dev/null || true
   fi
@@ -152,6 +159,7 @@ fi
 
 echo -e "${BLUE}====================================================${NC}"
 echo -e "${GREEN}🎉 恭喜！Rime 与 Rheatin Solarized 配置已全自动部署完毕！${NC}"
+echo -e "${GREEN}🧠 个人自造词与词频记忆已完成合并恢复！${NC}"
 if [ "$PLATFORM" = "macos" ]; then
   echo -e "${YELLOW}提示：若首次安装 Squirrel，请在「系统设置 -> 键盘 -> 输入法」添加「鼠须管」。${NC}"
 elif [ "$PLATFORM" = "linux" ]; then

@@ -1,0 +1,14 @@
+# Rime user dictionary
+#@/db_name	luna_pinyin
+#@/db_type	userdb
+#@/rime_version	1.13.0
+#@/tick	9
+#@/user_id	MBA
+jian fan 	簡繁	c=1 d=0.995012 t=9
+mo hu 	模糊	c=4 d=3.92581 t=9
+pin yin 	拼音	c=1 d=0.97531 t=9
+sheng mu 	聲母	c=1 d=1 t=9
+tou da 	頭大	c=0 d=0.0955997 t=9
+tou da you 	頭大有	c=1 d=0.960789 t=9
+yi chu 	移除	c=1 d=0.965605 t=9
+you 	有	c=0 d=0.0955997 t=9
