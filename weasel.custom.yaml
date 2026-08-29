@@ -1,0 +1,24 @@
+patch:
+  "style/color_scheme": rheatin_solarized
+  "style/color_scheme_dark": rheatin_solarized
+  "style/horizontal": true
+  "style/inline_preedit": true
+  "style/font_face": "Source Han Serif SC Heavy, Source Han Serif TC Heavy, Microsoft YaHei"
+  "style/font_point": 13
+  "style/label_font_point": 10
+  "style/corner_radius": 8
+  "style/border_width": 0
+
+  # 自定义配色方案：Rheatin Solarized (Windows 小狼毫)
+  "preset_color_schemes/rheatin_solarized":
+    name: "Rheatin Solarized"
+    author: "Rheatin"
+    back_color: 0x362b00
+    border_color: 0x362b00
+    text_color: 0x8236d3
+    hilited_text_color: 0x98a12a
+    candidate_text_color: 0xffffff
+    comment_text_color: 0xc098a12a
+    hilited_candidate_text_color: 0xffffff
+    hilited_candidate_back_color: 0x8236d3
+    hilited_comment_text_color: 0x362b00

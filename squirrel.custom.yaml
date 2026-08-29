@@ -76,6 +76,7 @@ patch:
   preset_color_schemes/rheatin_solarized:
     name: Rheatin Solarized
     author: "Rheatin"
+    candidate_format: "%c\u2005%@\u2005"  # 候选词微距排版优化
     back_color: 0x362b00
     border_color: 0x362b00
     text_color: 0x8236d3
