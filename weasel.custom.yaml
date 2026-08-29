@@ -1,38 +1,43 @@
 patch:
-  # 界面样式微调 (Windows 小狼毫 Weasel)
+  # 基础行为设置 (Windows 小狼毫 Weasel)
   "style/color_scheme": rheatin_solarized
   "style/color_scheme_dark": rheatin_solarized
   "style/horizontal": true
   "style/inline_preedit": true
+
+  # 字体设定 (思源宋体 Heavy)
   "style/font_face": "Source Han Serif SC Heavy, 思源宋体 Heavy, Source Han Serif SC, 思源宋体, SourceHanSerifSC-Heavy, SimSun, Microsoft YaHei"
+  "style/label_font_face": "Source Han Serif SC Heavy, 思源宋体 Heavy, Microsoft YaHei"
+  "style/comment_font_face": "Source Han Serif SC Heavy, 思源宋体 Heavy, Microsoft YaHei"
   "style/font_point": 14
   "style/label_font_point": 11
-  "style/corner_radius": 10                      # 外边框圆角
-  "style/round_corner": 10
-  "style/hilited_corner_radius": 6               # 独立选中胶囊圆角
-  "style/border_width": 0
-  "style/margin_x": 10                           # 窗口水平内边距
-  "style/margin_y": 6                            # 窗口垂直内边距
-  "style/spacing": 14                            # 候选词水平间距
-  "style/candidate_spacing": 14
-  "style/candidate_format": "%c\u2005%@\u2005"   # 候选词微距排版
+  "style/comment_font_point": 12
 
-  # 自定义配色方案：Rheatin Solarized (Windows 小狼毫)
+  # 现代胶囊排版核心参数 (小狼毫必须放在 style/layout 节点下)
+  "style/layout/border_width": 0
+  "style/layout/corner_radius": 10               # 候选框整体外圆角
+  "style/layout/round_corner": 6                # 选中项独立胶囊圆角 (4角全圆角)
+  "style/layout/margin_x": 10                   # 候选窗左右留白
+  "style/layout/margin_y": 6                    # 候选窗上下留白 (彻底消除上下贴顶)
+  "style/layout/candidate_spacing": 18          # 候选词彼此之间的横向间隔
+  "style/layout/hilite_spacing": 6              # 序号与汉字之间的微距
+  "style/layout/hilite_padding": 6              # 高亮背景内边距
+  "style/layout/hilite_padding_x": 8            # 胶囊左右饱满度
+  "style/layout/hilite_padding_y": 4            # 胶囊上下微距，形成椭圆胶囊
+  "style/layout/align_type": center
+
+  # 自定义配色方案：Rheatin Solarized
   "preset_color_schemes/rheatin_solarized":
     name: "Rheatin Solarized"
     author: "Rheatin"
-    candidate_format: "%c\u2005%@\u2005"
-    font_face: "Source Han Serif SC Heavy, 思源宋体 Heavy, Source Han Serif SC, 思源宋体, SourceHanSerifSC-Heavy, SimSun, Microsoft YaHei"
-    font_point: 14
-    label_font_point: 11
-    label_color: 0xa1a093                  # 柔亮白灰序号 (Base1)
-    back_color: 0x362b00                   # Solarized base03 深青墨色
+    label_color: 0xa1a093                   # 柔亮白灰序号 (Base1)
+    back_color: 0x362b00                    # Solarized base03 深青墨色
     border_color: 0x362b00
-    text_color: 0x8236d3                   # 内嵌拼音紫红
-    hilited_text_color: 0x98a12a           # 高亮编码青色
-    candidate_text_color: 0xffffff         # 候选词纯白
-    comment_text_color: 0x8098a12a         # 拼音/Emoji提示色
-    hilited_candidate_text_color: 0xffffff # 选中词高亮纯白
-    hilited_candidate_label_color: 0xffffff
-    hilited_candidate_back_color: 0x8236d3 # 选中胶囊紫红底色
+    text_color: 0x8236d3                    # 内嵌拼音紫红
+    hilited_text_color: 0x98a12a            # 高亮编码青色
+    candidate_text_color: 0xffffff          # 候选词纯白
+    comment_text_color: 0x8098a12a          # 提示注释色
+    hilited_candidate_text_color: 0xffffff  # 选中文字纯白
+    hilited_candidate_label_color: 0xffffff # 选中序号纯白
+    hilited_candidate_back_color: 0x8236d3  # 胶囊紫红高亮底色
     hilited_comment_text_color: 0x362b00
