@@ -58,7 +58,7 @@ if ($NeedDownload) {
 
 # 2. 检测与安装 Weasel (小狼毫)
 $WeaselDir = "${env:ProgramFiles(x86)}\Rime\weasel-*"
-$WeaselInstalled = Test-Path $WeaselDir
+$WeaselInstalled = (Test-Path $WeaselDir) -or (Test-Path "${env:ProgramFiles}\Rime\weasel-*")
 
 if (-not $WeaselInstalled) {
     Write-Host "🔍 未检测到小狼毫 (Weasel)，正在尝试自动安装..." -ForegroundColor Yellow
@@ -77,7 +77,7 @@ if (-not $WeaselInstalled) {
     Write-Host "✅ 检测到已安装小狼毫 (Weasel)" -ForegroundColor Green
 }
 
-# 3. 拉取/同步 雾凇拼音 (rime-ice) 词库底座
+# 3. 拉取/同步 雾凇拼音 (rime-ice) 词库底座 (解决非空目录报错)
 Write-Host "❄️  正在同步 雾凇拼音 (rime-ice) 官方词库..." -ForegroundColor Cyan
 if (-not (Test-Path $RimeDir)) {
     New-Item -ItemType Directory -Path $RimeDir -Force | Out-Null
@@ -88,12 +88,22 @@ if (Test-Path (Join-Path $RimeDir ".git")) {
     git pull --ff-only
     Pop-Location
 } else {
+    # 如果目录已存在初始文件，先 clone 到临时目录再覆盖
+    $TempRimeIce = Join-Path $env:TEMP "rime_ice_temp"
+    if (Test-Path $TempRimeIce) { Remove-Item -Recurse -Force $TempRimeIce }
+    
     if (Get-Command git -ErrorAction SilentlyContinue) {
-        git clone --depth=1 $RimeIceUrl $RimeDir
+        git clone --depth=1 $RimeIceUrl $TempRimeIce
+        Copy-Item -Path (Join-Path $TempRimeIce "*") -Destination $RimeDir -Recurse -Force
+        if (Test-Path (Join-Path $TempRimeIce ".git")) {
+            Copy-Item -Path (Join-Path $TempRimeIce ".git") -Destination $RimeDir -Recurse -Force
+        }
     } else {
         Download-And-Extract-Zip -Url $RimeIceZipUrl -DestDir $RimeDir
     }
+    if (Test-Path $TempRimeIce) { Remove-Item -Recurse -Force $TempRimeIce -ErrorAction SilentlyContinue }
 }
+Write-Host "✅ 雾凇拼音词库同步完成！" -ForegroundColor Green
 
 # 4. 复制个人自定义配置 (*.custom.yaml)
 Write-Host "⚙️  正在应用个人配置与 Rheatin Solarized 皮肤..." -ForegroundColor Cyan
@@ -112,28 +122,52 @@ if (Test-Path (Join-Path $ScriptDir "sync")) {
     Write-Host "✅ 词频快照就绪！" -ForegroundColor Green
 }
 
-# 6. 安装思源宋体到 Windows 字体库
+# 6. 安装并强制注册思源宋体到 Windows 系统
 $FontsSource = Join-Path $ScriptDir "fonts"
 if (Test-Path $FontsSource) {
-    Write-Host "🔤 正在安装思源宋体..." -ForegroundColor Cyan
-    try {
-        $ShellApp = New-Object -ComObject Shell.Application
-        $FontsFolder = $ShellApp.Namespace(0x14)
-        Get-ChildItem -Path $FontsSource -Filter "*.otf" | ForEach-Object {
-            $FontName = $_.Name
-            $TargetFont = Join-Path $env:WINDIR "Fonts\$FontName"
-            if (-not (Test-Path $TargetFont)) {
-                $FontsFolder.CopyHere($_.FullName, 16)
-            }
-        }
-        Write-Host "✅ 字体安装完成！" -ForegroundColor Green
-    } catch {
-        Write-Host "⚠️ 字体自动注册跳过，可手动双击 fonts 目录下字体安装。" -ForegroundColor Yellow
+    Write-Host "🔤 正在安装并注册思源宋体..." -ForegroundColor Cyan
+    $UserFontsDir = Join-Path $env:LOCALAPPDATA "Microsoft\Windows\Fonts"
+    if (-not (Test-Path $UserFontsDir)) { New-Item -ItemType Directory -Path $UserFontsDir -Force | Out-Null }
+    
+    $RegKeyPath = "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Fonts"
+    
+    # C# API 动态调用 AddFontResource
+    $TypeDefinition = @"
+    using System;
+    using System.Runtime.InteropServices;
+    public class FontHelper {
+        [DllImport("gdi32.dll", EntryPoint = "AddFontResourceW", SetLastError = true)]
+        public static extern int AddFontResource([In, MarshalAs(UnmanagedType.LPWStr)] string lpFileName);
+        [DllImport("user32.dll")]
+        public static extern int SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
     }
+"@
+    if (-not ([System.Management.Automation.PSTypeName]'FontHelper').Type) {
+        Add-Type -TypeDefinition $TypeDefinition -ErrorAction SilentlyContinue
+    }
+
+    Get-ChildItem -Path $FontsSource -Filter "*.otf" | ForEach-Object {
+        $FontName = $_.Name
+        $DestPath = Join-Path $UserFontsDir $FontName
+        Copy-Item -Path $_.FullName -Destination $DestPath -Force
+        
+        # 写入用户字体注册表
+        $RegValueName = "$($_.BaseName) (TrueType)"
+        Set-ItemProperty -Path $RegKeyPath -Name $RegValueName -Value $DestPath -Force -ErrorAction SilentlyContinue
+        
+        # 广播 GDI 立即加载字体
+        try { [FontHelper]::AddFontResource($DestPath) | Out-Null } catch {}
+    }
+    try { [FontHelper]::SendMessage([IntPtr]0xffff, 0x001D, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null } catch {}
+    Write-Host "✅ 思源宋体安装与即时注册完成！" -ForegroundColor Green
 }
 
-# 7. 重新部署 Weasel 与合并词频
-Write-Host "🔄 正在触发小狼毫重新部署与词频合并..." -ForegroundColor Cyan
+# 7. 重启 Weasel 服务并重新部署
+Write-Host "🔄 正在重启小狼毫服务并重新部署..." -ForegroundColor Cyan
+
+# 结束可能占用旧字体/配置的旧后台进程
+Stop-Process -Name "WeaselServer" -Force -ErrorAction SilentlyContinue
+
 $Deployer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime" -Filter "WeaselDeployer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 if (-not $Deployer) {
     $Deployer = Get-ChildItem -Path "${env:ProgramFiles}\Rime" -Filter "WeaselDeployer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
