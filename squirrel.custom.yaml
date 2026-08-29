@@ -59,33 +59,34 @@ patch:
 
     text_orientation: horizontal
     candidate_list_layout: linear
-    translucency: true
+    translucency: true                     # 磨砂毛玻璃
     inline_preedit: true
-    corner_radius: 10
-    hilited_corner_radius: 0
-    border_height: 0
-    border_width: 0
-    line_spacing: 5
-    spacing: 10
+    corner_radius: 10                      # 外框圆角
+    hilited_corner_radius: 6               # 选中胶囊圆角
+    border_height: 6                       # 上下呼吸边距
+    border_width: 10                       # 左右呼吸边距
+    line_spacing: 6
+    spacing: 12
     font_face: "Lucida Grande"
     font_point: 21
-    label_font_point: 18
-    comment_font_point: 18
+    label_font_point: 13                   # 序号字号微调适中
+    comment_font_point: 14
 
   # 自定义配色方案：Rheatin Solarized
   preset_color_schemes/rheatin_solarized:
-    name: Rheatin Solarized
+    name: "Rheatin Solarized"
     author: "Rheatin"
-    candidate_format: "%c\u2005%@\u2005"  # 候选词微距排版优化
-    back_color: 0x362b00
-    border_color: 0x362b00
+    candidate_format: "%c\u2005%@\u2005"   # 极简微距排版
+    back_color: 0xee362b00                 # 毛玻璃半透明底色
+    border_color: 0xee362b00
     text_color: 0x8236d3
     font_face: "SourceHanSerifTC-Heavy, SourceHanSerifSC-Heavy, PingFang SC"
     font_point: 18
     label_font_point: 13
-    hilited_text_color: 0x98a12a
+    label_color: 0xa1a093                  # 序号清晰色：Solarized Base1 柔亮灰白
     candidate_text_color: 0xffffff
-    comment_text_color: 0xc098a12a
+    comment_text_color: 0x8098a12a
     hilited_candidate_text_color: 0xffffff
-    hilited_candidate_back_color: 0x8236d3
+    hilited_candidate_label_color: 0xffffff # 选中项序号为纯白
+    hilited_candidate_back_color: 0x8236d3 # 胶囊高亮底色
     hilited_comment_text_color: 0x362b00
