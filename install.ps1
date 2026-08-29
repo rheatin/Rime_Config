@@ -67,7 +67,15 @@ if (Test-Path (Join-Path $ScriptDir "custom_phrase.txt")) {
 }
 Write-Host "✅ 个人配置应用成功！" -ForegroundColor Green
 
-# 4. 安装思源宋体到 Windows 字体库
+# 4. 导入个人历史词频快照
+if (Test-Path (Join-Path $ScriptDir "sync")) {
+    Write-Host "🧠 正在同步历史自造词与词频快照..." -ForegroundColor Cyan
+    $TargetSync = Join-Path $RimeDir "sync"
+    Copy-Item -Path (Join-Path $ScriptDir "sync\*") -Destination $TargetSync -Recurse -Force
+    Write-Host "✅ 词频快照就绪！" -ForegroundColor Green
+}
+
+# 5. 安装思源宋体到 Windows 字体库
 $FontsSource = Join-Path $ScriptDir "fonts"
 if (Test-Path $FontsSource) {
     Write-Host "🔤 正在安装思源宋体..." -ForegroundColor Cyan
@@ -83,12 +91,13 @@ if (Test-Path $FontsSource) {
     Write-Host "✅ 字体安装完成！" -ForegroundColor Green
 }
 
-# 5. 重新部署 Weasel
-Write-Host "🔄 正在触发小狼毫重新部署..." -ForegroundColor Cyan
+# 6. 重新部署 Weasel 与合并词频
+Write-Host "🔄 正在触发小狼毫重新部署与词频合并..." -ForegroundColor Cyan
 $Deployer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime" -Filter "WeaselDeployer.exe" -Recurse | Select-Object -First 1
 if ($Deployer) {
     Start-Process -FilePath $Deployer.FullName -ArgumentList "/deploy" -Wait
-    Write-Host "🎉 部署完成！" -ForegroundColor Green
+    Start-Process -FilePath $Deployer.FullName -ArgumentList "/sync" -Wait
+    Write-Host "🎉 部署与词频合并完成！" -ForegroundColor Green
 }
 
 if ($TempDir -and (Test-Path $TempDir)) {
@@ -96,5 +105,5 @@ if ($TempDir -and (Test-Path $TempDir)) {
 }
 
 Write-Host "====================================================" -ForegroundColor Cyan
-Write-Host "🎉 全部安装与配置已完成！" -ForegroundColor Green
+Write-Host "🎉 全部安装、配置与词频恢复已完成！" -ForegroundColor Green
 Write-Host "====================================================" -ForegroundColor Cyan
