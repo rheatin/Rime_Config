@@ -1,0 +1,3 @@
+patch:
+  # 初始状态设为英文 (reset: 1)
+  switches/@0/reset: 1

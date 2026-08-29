@@ -1,0 +1,13 @@
+patch:
+  # 候选词数量
+  menu/page_size: 5
+
+  # 中西文切换逻辑
+  ascii_composer:
+    good_old_caps_lock: true
+    switch_key:
+      Caps_Lock: clear
+      Shift_L: inline_ascii
+      Shift_R: clear
+      Control_L: noop
+      Control_R: noop

@@ -1,0 +1,90 @@
+patch:
+  ascii_mode: true
+  ascii_punct: true
+
+  # 特定应用下的英文模式设定
+  app_options:
+    com.apple.Spotlight:
+      ascii_mode: true
+    com.alfredapp.Alfred:
+      ascii_mode: true
+    com.runningwithcrayons.Alfred-2:
+      ascii_mode: true
+    com.blacktree.Quicksilver:
+      ascii_mode: true
+    com.apple.Terminal:
+      ascii_mode: true
+      no_inline: true
+    com.googlecode.iterm2:
+      ascii_mode: true
+      no_inline: true
+    com.stablyai.orca:
+      ascii_mode: true
+      no_inline: true
+    org.vim.MacVim:
+      ascii_mode: true
+      no_inline: true
+      vim_mode: true
+    com.apple.dt.Xcode:
+      ascii_mode: true
+    com.barebones.textwrangler:
+      ascii_mode: true
+    com.macromates.TextMate.preview:
+      ascii_mode: true
+    com.github.atom:
+      ascii_mode: true
+    com.microsoft.VSCode:
+      ascii_mode: true
+    com.sublimetext.2:
+      ascii_mode: true
+    org.gnu.Aquamacs:
+      ascii_mode: true
+    org.gnu.Emacs:
+      ascii_mode: true
+      no_inline: true
+    co.zeit.hyper:
+      ascii_mode: true
+    com.torusknot.SourceTreeNotMAS:
+      ascii_mode: true
+    com.google.Chrome:
+      inline: true
+    com.microsoft.edgemac:
+      inline: true
+    ru.keepcoder.Telegram:
+      inline: true
+
+  style:
+    color_scheme: rheatin_solarized
+    color_scheme_dark: rheatin_solarized
+
+    text_orientation: horizontal
+    candidate_list_layout: linear
+    translucency: true
+    inline_preedit: true
+    corner_radius: 10
+    hilited_corner_radius: 0
+    border_height: 0
+    border_width: 0
+    line_spacing: 5
+    spacing: 10
+    font_face: "Lucida Grande"
+    font_point: 21
+    label_font_point: 18
+    comment_font_point: 18
+
+  # 自定义配色方案：Rheatin Solarized
+  preset_color_schemes/rheatin_solarized:
+    name: Rheatin Solarized
+    author: "Rheatin"
+    back_color: 0x362b00
+    border_color: 0x362b00
+    text_color: 0x8236d3
+    font_face: "SourceHanSerifTC-Heavy, SourceHanSerifSC-Heavy, PingFang SC"
+    font_point: 18
+    label_font_point: 13
+    hilited_text_color: 0x98a12a
+    candidate_text_color: 0xffffff
+    comment_text_color: 0xc098a12a
+    hilited_candidate_text_color: 0xffffff
+    hilited_candidate_back_color: 0x8236d3
+    hilited_comment_text_color: 0x362b00
