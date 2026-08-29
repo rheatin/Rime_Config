@@ -85,12 +85,11 @@ if (-not (Test-Path $RimeDir)) {
 
 if (Test-Path (Join-Path $RimeDir ".git")) {
     Push-Location $RimeDir
-    git pull --ff-only
+    try { git pull --ff-only } catch {}
     Pop-Location
 } else {
-    # 如果目录已存在初始文件，先 clone 到临时目录再覆盖
     $TempRimeIce = Join-Path $env:TEMP "rime_ice_temp"
-    if (Test-Path $TempRimeIce) { Remove-Item -Recurse -Force $TempRimeIce }
+    if (Test-Path $TempRimeIce) { Remove-Item -Recurse -Force $TempRimeIce -ErrorAction SilentlyContinue }
     
     if (Get-Command git -ErrorAction SilentlyContinue) {
         git clone --depth=1 $RimeIceUrl $TempRimeIce
@@ -122,7 +121,7 @@ if (Test-Path (Join-Path $ScriptDir "sync")) {
     Write-Host "✅ 词频快照就绪！" -ForegroundColor Green
 }
 
-# 6. 安装并强制注册思源宋体到 Windows 系统
+# 6. 安装思源宋体 (自动处理文件被占用与多名称注册)
 $FontsSource = Join-Path $ScriptDir "fonts"
 if (Test-Path $FontsSource) {
     Write-Host "🔤 正在安装并注册思源宋体..." -ForegroundColor Cyan
@@ -146,17 +145,45 @@ if (Test-Path $FontsSource) {
         Add-Type -TypeDefinition $TypeDefinition -ErrorAction SilentlyContinue
     }
 
+    # 首先尝试通过 Shell API 进行系统级标准字体安装
+    try {
+        $ShellApp = New-Object -ComObject Shell.Application
+        $FontsFolder = $ShellApp.Namespace(0x14)
+        Get-ChildItem -Path $FontsSource -Filter "*.otf" | ForEach-Object {
+            $TargetSystemFont = Join-Path $env:WINDIR "Fonts\$($_.Name)"
+            if (-not (Test-Path $TargetSystemFont)) {
+                $FontsFolder.CopyHere($_.FullName, 16)
+            }
+        }
+    } catch {}
+
+    # 用户目录注册容错处理
     Get-ChildItem -Path $FontsSource -Filter "*.otf" | ForEach-Object {
         $FontName = $_.Name
         $DestPath = Join-Path $UserFontsDir $FontName
-        Copy-Item -Path $_.FullName -Destination $DestPath -Force
         
-        # 写入用户字体注册表
-        $RegValueName = "$($_.BaseName) (TrueType)"
-        Set-ItemProperty -Path $RegKeyPath -Name $RegValueName -Value $DestPath -Force -ErrorAction SilentlyContinue
+        if (-not (Test-Path $DestPath)) {
+            try {
+                Copy-Item -Path $_.FullName -Destination $DestPath -Force -ErrorAction Stop
+            } catch {
+                # 如果被占用则说明字体已被加载
+            }
+        }
         
-        # 广播 GDI 立即加载字体
+        # 写入多种格式的注册表键名，确保 GDI/DirectWrite 完全匹配
+        $Aliases = @(
+            "$($_.BaseName) (TrueType)",
+            "$($_.BaseName) (OpenType)",
+            "Source Han Serif SC Heavy (OpenType)",
+            "Source Han Serif TC Heavy (OpenType)",
+            "思源宋体 Heavy (OpenType)"
+        )
+        foreach ($alias in $Aliases) {
+            Set-ItemProperty -Path $RegKeyPath -Name $alias -Value $DestPath -Force -ErrorAction SilentlyContinue
+        }
+        
         try { [FontHelper]::AddFontResource($DestPath) | Out-Null } catch {}
+        try { [FontHelper]::AddFontResource($_.FullName) | Out-Null } catch {}
     }
     try { [FontHelper]::SendMessage([IntPtr]0xffff, 0x001D, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null } catch {}
     Write-Host "✅ 思源宋体安装与即时注册完成！" -ForegroundColor Green
@@ -165,18 +192,31 @@ if (Test-Path $FontsSource) {
 # 7. 重启 Weasel 服务并重新部署
 Write-Host "🔄 正在重启小狼毫服务并重新部署..." -ForegroundColor Cyan
 
-# 结束可能占用旧字体/配置的旧后台进程
+# 彻底终止可能锁定旧配置的后台进程
 Stop-Process -Name "WeaselServer" -Force -ErrorAction SilentlyContinue
+Stop-Process -Name "WeaselDeployer" -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 1
 
+# 查找 WeaselDeployer 路径
 $Deployer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime" -Filter "WeaselDeployer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 if (-not $Deployer) {
     $Deployer = Get-ChildItem -Path "${env:ProgramFiles}\Rime" -Filter "WeaselDeployer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+}
+
+$WeaselServer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime" -Filter "WeaselServer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $WeaselServer) {
+    $WeaselServer = Get-ChildItem -Path "${env:ProgramFiles}\Rime" -Filter "WeaselServer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 }
 
 if ($Deployer) {
     Start-Process -FilePath $Deployer.FullName -ArgumentList "/deploy" -Wait
     Start-Process -FilePath $Deployer.FullName -ArgumentList "/sync" -Wait
     Write-Host "🎉 部署与词频合并完成！" -ForegroundColor Green
+}
+
+# 重新唤起小狼毫服务
+if ($WeaselServer) {
+    Start-Process -FilePath $WeaselServer.FullName
 }
 
 if ($TempDir -and (Test-Path $TempDir)) {
