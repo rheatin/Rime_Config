@@ -13,17 +13,16 @@ patch:
   "style/label_font_point": 11
   "style/comment_font_point": 12
 
-  # 现代胶囊排版核心参数 (小狼毫必须放在 style/layout 节点下)
+# 现代胶囊排版核心参数
   "style/layout/border_width": 0
   "style/layout/corner_radius": 10               # 候选框整体外圆角
-  "style/layout/round_corner": 6                # 选中项独立胶囊圆角 (4角全圆角)
-  "style/layout/margin_x": 10                   # 候选窗左右留白
-  "style/layout/margin_y": 6                    # 候选窗上下留白 (彻底消除上下贴顶)
-  "style/layout/candidate_spacing": 18          # 候选词彼此之间的横向间隔
-  "style/layout/hilite_spacing": 6              # 序号与汉字之间的微距
-  "style/layout/hilite_padding": 6              # 高亮背景内边距
-  "style/layout/hilite_padding_x": 8            # 胶囊左右饱满度
-  "style/layout/hilite_padding_y": 4            # 胶囊上下微距，形成椭圆胶囊
+  "style/layout/round_corner": 10                # 胶囊圆角（设大一点形成完整半圆弧）
+  "style/layout/margin_x": 12                    # 候选框左右外边距（大于 hilite_padding_x）
+  "style/layout/margin_y": 8                     # 候选框上下外边距（大于 hilite_padding_y，彻底脱离边缘）
+  "style/layout/candidate_spacing": 16           # 候选词横向间距
+  "style/layout/hilite_spacing": 4               # 序号与汉字间距
+  "style/layout/hilite_padding_x": 8             # 胶囊左右扩展
+  "style/layout/hilite_padding_y": 4             # 胶囊上下扩展
   "style/layout/align_type": center
 
   # 自定义配色方案：Rheatin Solarized
