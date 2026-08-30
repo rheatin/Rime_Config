@@ -3,11 +3,17 @@
 # Repository: https://github.com/rheatin/Rime_Config.git
 # ==============================================================================
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 
 Write-Host "====================================================" -ForegroundColor Cyan
 Write-Host "       🚀 开始配置 Rime 雾凇拼音与个人环境 (Windows)   " -ForegroundColor Green
 Write-Host "====================================================" -ForegroundColor Cyan
+
+# 先彻底终止可能卡在维护中的旧后台进程
+Write-Host "🧹 正在清理可能卡住的旧输入法进程..." -ForegroundColor Cyan
+Stop-Process -Name "WeaselDeployer" -Force -ErrorAction SilentlyContinue
+Stop-Process -Name "WeaselServer" -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 1
 
 $RimeDir = Join-Path $env:APPDATA "Rime"
 $PermanentConfigDir = Join-Path $env:USERPROFILE "Rime_Config"
@@ -16,7 +22,6 @@ $RepoZipUrl = "https://github.com/rheatin/Rime_Config/archive/refs/heads/main.zi
 $RimeIceUrl = "https://github.com/iDvel/rime-ice.git"
 $RimeIceZipUrl = "https://github.com/iDvel/rime-ice/archive/refs/heads/main.zip"
 
-# 安全判断是否为本地执行还是网络管道 (iex) 执行
 $ScriptPath = if ($MyInvocation.MyCommand.Path) { $MyInvocation.MyCommand.Path } else { "" }
 $ScriptDir = if ($ScriptPath) { Split-Path -Parent $ScriptPath } else { "" }
 $TempDir = $null
@@ -26,7 +31,6 @@ if ($ScriptDir -and (Test-Path (Join-Path $ScriptDir "fonts"))) {
     $NeedDownload = $false
 }
 
-# 辅助函数：下载并解压缩
 function Download-And-Extract-Zip {
     param([string]$Url, [string]$DestDir)
     $ZipFile = Join-Path $env:TEMP "$([System.Guid]::NewGuid()).zip"
@@ -50,7 +54,7 @@ if ($NeedDownload) {
     if (Test-Path $TempDir) { Remove-Item -Recurse -Force $TempDir }
     
     if (Get-Command git -ErrorAction SilentlyContinue) {
-        git clone --depth=1 $RepoUrl $TempDir
+        git clone --depth=1 $RepoUrl $TempDir 2>$null
     } else {
         Download-And-Extract-Zip -Url $RepoZipUrl -DestDir $TempDir
     }
@@ -63,6 +67,13 @@ if (-not (Test-Path $PermanentConfigDir)) {
         git clone $RepoUrl $PermanentConfigDir 2>$null
     } else {
         Copy-Item -Path $ScriptDir -Destination $PermanentConfigDir -Recurse -Force
+    }
+} else {
+    # 如果已存在，拉取更新
+    if (Test-Path (Join-Path $PermanentConfigDir ".git")) {
+        Push-Location $PermanentConfigDir
+        try { git pull --rebase origin main 2>$null } catch {}
+        Pop-Location
     }
 }
 
@@ -102,7 +113,7 @@ if (Test-Path (Join-Path $RimeDir ".git")) {
     if (Test-Path $TempRimeIce) { Remove-Item -Recurse -Force $TempRimeIce -ErrorAction SilentlyContinue }
     
     if (Get-Command git -ErrorAction SilentlyContinue) {
-        git clone --depth=1 $RimeIceUrl $TempRimeIce
+        git clone --depth=1 $RimeIceUrl $TempRimeIce 2>$null
         Copy-Item -Path (Join-Path $TempRimeIce "*") -Destination $RimeDir -Recurse -Force
         if (Test-Path (Join-Path $TempRimeIce ".git")) {
             Copy-Item -Path (Join-Path $TempRimeIce ".git") -Destination $RimeDir -Recurse -Force
@@ -122,7 +133,7 @@ if (Test-Path (Join-Path $ScriptDir "custom_phrase.txt")) {
 }
 Write-Host "✅ 个人配置应用成功！" -ForegroundColor Green
 
-# 5. 导入跨平台 (Mac/云端) 历史词频与自造词快照
+# 5. 导入跨平台历史词频快照
 if (Test-Path (Join-Path $ScriptDir "sync")) {
     Write-Host "🧠 正在导入跨平台自造词与历史词频..." -ForegroundColor Cyan
     $TargetSync = Join-Path $RimeDir "sync"
@@ -192,38 +203,36 @@ if (Test-Path $FontsSource) {
     Write-Host "✅ 思源宋体安装与即时注册完成！" -ForegroundColor Green
 }
 
-# 7. 配置 Windows 托盘「用户词典同步」自动 Push 到 GitHub 守护服务
+# 7. 配置 Windows 词典同步自动 Push 守护服务
 Write-Host "⚡ 配置 Windows 词典同步自动 Push 守护服务..." -ForegroundColor Cyan
 $StartupFolder = [Environment]::GetFolderPath("Startup")
 $VbsPath = Join-Path $StartupFolder "RimeSyncWatcher.vbs"
 $WatcherScriptPath = Join-Path $PermanentConfigDir "sync_watcher.ps1"
 
-# 复制 sync 相关脚本到永久目录
 Copy-Item -Path (Join-Path $ScriptDir "sync.ps1") -Destination $PermanentConfigDir -Force
 Copy-Item -Path (Join-Path $ScriptDir "sync_watcher.ps1") -Destination $PermanentConfigDir -Force
 
 $VbsContent = "CreateObject(`"Wscript.Shell`").Run `"powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"`"$WatcherScriptPath`"`"`", 0, False"
 Set-Content -Path $VbsPath -Value $VbsContent -Encoding ASCII
 
-# 立即在后台静默启动 Watcher
+# 启动 Watcher 监听进程
 Start-Process "wscript.exe" -ArgumentList "`"$VbsPath`"" -WindowStyle Hidden
 Write-Host "✅ 自动同步监听守护进程已激活！" -ForegroundColor Green
 
-# 8. 重启 Weasel 服务并重新部署与双向合并
-Write-Host "🔄 正在重启小狼毫服务并重新部署..." -ForegroundColor Cyan
-Stop-Process -Name "WeaselServer" -Force -ErrorAction SilentlyContinue
-Stop-Process -Name "WeaselDeployer" -Force -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 1
-
+# 8. 重新部署小狼毫
+Write-Host "🔄 正在部署小狼毫..." -ForegroundColor Cyan
 $Deployer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime", "${env:ProgramFiles}\Rime" -Filter "WeaselDeployer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 $WeaselServer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime", "${env:ProgramFiles}\Rime" -Filter "WeaselServer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 
 if ($Deployer) {
+    # 使用 Start-Process 调用部署，完成后确保 Deployer 彻底退出
     Start-Process -FilePath $Deployer.FullName -ArgumentList "/deploy" -Wait
     Start-Process -FilePath $Deployer.FullName -ArgumentList "/sync" -Wait
-    Write-Host "🎉 部署与双向词频合并完成！" -ForegroundColor Green
+    Stop-Process -Name "WeaselDeployer" -Force -ErrorAction SilentlyContinue
+    Write-Host "🎉 部署完成！" -ForegroundColor Green
 }
 
+# 重新启动 WeaselServer 服务
 if ($WeaselServer) {
     Start-Process -FilePath $WeaselServer.FullName
 }

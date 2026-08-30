@@ -23,10 +23,10 @@ $LastSyncTime = [DateTime]::MinValue
 
 $Action = {
     $Now = [DateTime]::Now
-    # 防抖机制：5秒内只触发一次
-    if (($Now - $script:LastSyncTime).TotalSeconds -ge 5) {
+    # 防抖机制：10 秒内只触发一次，防止频繁唤起
+    if (($Now - $script:LastSyncTime).TotalSeconds -ge 10) {
         $script:LastSyncTime = $Now
-        Start-Sleep -Seconds 2
+        # 启动后台隐藏任务运行 sync.ps1
         Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$using:SyncScript`" -Auto" -WindowStyle Hidden
     }
 }
