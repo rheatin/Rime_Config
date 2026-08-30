@@ -19,6 +19,7 @@ echo -e "${BLUE}====================================================${NC}"
 
 REPO_URL="https://github.com/rheatin/Rime_Config.git"
 RIME_ICE_URL="https://github.com/iDvel/rime-ice.git"
+MOETYPE_RELEASE_URL="https://github.com/suiginko/moetype/releases/latest/download/toneless_moe.dict.yaml"
 
 # 1. 确定脚本所在目录或通过网络拉取
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo "")"
@@ -109,16 +110,62 @@ else
   git clone --depth=1 "$RIME_ICE_URL" "$RIME_DIR"
 fi
 
-# 5. 同步个人精简配置与扩展词库 (MoeType 萌娘百科)
-echo -e "${BLUE}⚙️  正在应用个人自定义配置与扩展词库...${NC}"
+# 5. 联网下载 MoeType 萌娘百科最新无声调词库并动态去重
+echo -e "${BLUE}🌸 正在联网获取 MoeType (萌娘百科) 最新官方词库...${NC}"
+RAW_MOE_TEMP="/tmp/toneless_moe_raw.dict.yaml"
+if curl -fsSL "$MOETYPE_RELEASE_URL" -o "$RAW_MOE_TEMP"; then
+  echo -e "${BLUE}✂️  正在对 MoeType 词库进行动态去重 (只保留独有词条)...${NC}"
+  python3 -c "
+import os
+rime_dir = '$RIME_DIR'
+cn_dicts = os.path.join(rime_dir, 'cn_dicts')
+rime_words = set()
+if os.path.exists(cn_dicts):
+    for root, _, files in os.walk(cn_dicts):
+        for fn in files:
+            if fn.endswith('.dict.yaml') or fn.endswith('.txt'):
+                with open(os.path.join(root, fn), 'r', encoding='utf-8', errors='ignore') as f:
+                    in_b = False
+                    for l in f:
+                        if l.strip() == '...': in_b = True; continue
+                        if not in_b or not l or l.startswith('#'): continue
+                        p = l.split('\t')
+                        if p and p[0].strip(): rime_words.add(p[0].strip())
+
+out_file = os.path.join(rime_dir, 'moe.dict.yaml')
+kept = 0
+removed = 0
+with open('$RAW_MOE_TEMP', 'r', encoding='utf-8') as fin, open(out_file, 'w', encoding='utf-8') as fout:
+    in_b = False
+    for line in fin:
+        if line.strip() == '...': in_b = True; fout.write(line); continue
+        if not in_b: fout.write(line); continue
+        if not line.strip() or line.startswith('#'): fout.write(line); continue
+        p = line.strip().split('\t')
+        w = p[0].strip()
+        if w in rime_words:
+            removed += 1
+        else:
+            kept += 1
+            fout.write(line)
+print(f'   去重完成：保留独有词条 {kept:,}，剔除重复词条 {removed:,}')
+"
+  rm -f "$RAW_MOE_TEMP"
+  echo -e "${GREEN}✅ MoeType 动态去重完成！${NC}"
+else
+  echo -e "${YELLOW}⚠️ MoeType 下载失败，跳过扩展词库。${NC}"
+fi
+
+# 6. 同步个人精简配置与聚合词库定义 (*.custom.yaml & rime_ice.extended.dict.yaml)
+echo -e "${BLUE}⚙️  正在应用个人自定义配置与聚合词库...${NC}"
 cp -f "$SCRIPT_DIR"/*.custom.yaml "$RIME_DIR/" 2>/dev/null || true
 cp -f "$SCRIPT_DIR"/*.dict.yaml "$RIME_DIR/" 2>/dev/null || true
 if [ -f "$SCRIPT_DIR/custom_phrase.txt" ]; then
   cp -f "$SCRIPT_DIR/custom_phrase.txt" "$RIME_DIR/"
 fi
-echo -e "${GREEN}✅ 个人配置与 MoeType 词库应用成功！${NC}"
+echo -e "${GREEN}✅ 个人配置应用成功！${NC}"
 
-# 6. 安装思源宋体到系统字体库 (若已安装则跳过)
+# 7. 安装思源宋体到系统字体库 (若已安装则跳过)
 if [ -d "$SCRIPT_DIR/fonts" ]; then
   FONTS_EXIST=true
   for f in "$SCRIPT_DIR/fonts/"*.otf; do
@@ -143,7 +190,7 @@ if [ -d "$SCRIPT_DIR/fonts" ]; then
   fi
 fi
 
-# 7. 导入个人自造词与历史词频记忆
+# 8. 导入个人自造词与历史词频记忆
 if [ -d "$SCRIPT_DIR/sync" ]; then
   echo -e "${BLUE}🧠 正在导入历史词频与自造词记忆...${NC}"
   mkdir -p "$RIME_DIR/sync"
@@ -151,7 +198,7 @@ if [ -d "$SCRIPT_DIR/sync" ]; then
   echo -e "${GREEN}✅ 词频快照就绪！${NC}"
 fi
 
-# 8. 配置 macOS 状态栏「Sync user data」点击自动 Push 到 GitHub 的监听服务
+# 9. 配置 macOS 状态栏「Sync user data」点击自动 Push 到 GitHub 的监听服务
 if [ "$PLATFORM" = "macos" ]; then
   echo -e "${BLUE}⚡ 配置「Sync user data」自动推送 GitHub 守护进程...${NC}"
   LAUNCH_AGENT_DIR="$HOME/Library/LaunchAgents"
@@ -173,7 +220,7 @@ if [ "$PLATFORM" = "macos" ]; then
   echo -e "${GREEN}✅ 菜单栏同步监听已激活！${NC}"
 fi
 
-# 9. 重新部署与合并词频生效
+# 10. 重新部署与合并词频生效
 echo -e "${BLUE}🔄 触发 Rime 重新部署与词频合并...${NC}"
 if [ "$PLATFORM" = "macos" ]; then
   if [ -f "$SQUIRREL_APP/Contents/MacOS/Squirrel" ]; then

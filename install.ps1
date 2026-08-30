@@ -21,6 +21,7 @@ $RepoUrl = "https://github.com/rheatin/Rime_Config.git"
 $RepoZipUrl = "https://github.com/rheatin/Rime_Config/archive/refs/heads/main.zip"
 $RimeIceUrl = "https://github.com/iDvel/rime-ice.git"
 $RimeIceZipUrl = "https://github.com/iDvel/rime-ice/archive/refs/heads/main.zip"
+$MoeTypeReleaseUrl = "https://github.com/suiginko/moetype/releases/latest/download/toneless_moe.dict.yaml"
 
 $ScriptPath = if ($MyInvocation.MyCommand.Path) { $MyInvocation.MyCommand.Path } else { "" }
 $ScriptDir = if ($ScriptPath) { Split-Path -Parent $ScriptPath } else { "" }
@@ -124,16 +125,70 @@ if (Test-Path (Join-Path $RimeDir ".git")) {
 }
 Write-Host "✅ 雾凇拼音词库同步完成！" -ForegroundColor Green
 
-# 4. 复制个人自定义配置与 MoeType 扩展词库 (*.custom.yaml & *.dict.yaml)
-Write-Host "⚙️  正在应用个人配置、Rheatin Solarized 皮肤与 MoeType 词库..." -ForegroundColor Cyan
+# 4. 联网下载 MoeType 萌娘百科最新无声调词库并动态去重
+Write-Host "🌸 正在联网获取 MoeType (萌娘百科) 最新官方词库..." -ForegroundColor Cyan
+$RawMoeTemp = Join-Path $env:TEMP "toneless_moe_raw.dict.yaml"
+try {
+    Invoke-WebRequest -Uri $MoeTypeReleaseUrl -OutFile $RawMoeTemp
+    Write-Host "✂️  正在对 MoeType 进行动态去重 (只保留独有词条)..." -ForegroundColor Cyan
+    
+    # 收集雾凇拼音词汇
+    $RimeWords = [System.Collections.Generic.HashSet[string]]::new()
+    $CnDictsDir = Join-Path $RimeDir "cn_dicts"
+    if (Test-Path $CnDictsDir) {
+        Get-ChildItem -Path $CnDictsDir -Recurse -Include "*.dict.yaml", "*.txt" | ForEach-Object {
+            $inBody = $false
+            foreach ($line in [System.IO.File]::ReadLines($_.FullName)) {
+                $trimmed = $line.Trim()
+                if ($trimmed -eq '...') { $inBody = $true; continue }
+                if (-not $inBody -or [string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith('#')) { continue }
+                $p = $trimmed.Split("`t")
+                if ($p.Length -ge 1 -and $p[0].Trim()) {
+                    [void]$RimeWords.Add($p[0].Trim())
+                }
+            }
+        }
+    }
+    
+    # 输出去重后的 moe.dict.yaml
+    $TargetMoe = Join-Path $RimeDir "moe.dict.yaml"
+    $Writer = [System.IO.StreamWriter]::new($TargetMoe, $false, [System.Text.Encoding]::UTF8)
+    $inBody = $false
+    $kept = 0
+    $removed = 0
+    
+    foreach ($line in [System.IO.File]::ReadLines($RawMoeTemp)) {
+        $trimmed = $line.Trim()
+        if ($trimmed -eq '...') { $inBody = $true; $Writer.WriteLine($line); continue }
+        if (-not $inBody) { $Writer.WriteLine($line); continue }
+        if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith('#')) { $Writer.WriteLine($line); continue }
+        
+        $p = $trimmed.Split("`t")
+        $w = $p[0].Trim()
+        if ($RimeWords.Contains($w)) {
+            $removed++
+        } else {
+            $kept++
+            $Writer.WriteLine($line)
+        }
+    }
+    $Writer.Close()
+    Remove-Item -Path $RawMoeTemp -Force -ErrorAction SilentlyContinue
+    Write-Host "   去重完成：保留独有词条 $kept，剔除重复词条 $removed" -ForegroundColor Green
+} catch {
+    Write-Host "⚠️ MoeType 下载/处理跳过: $_" -ForegroundColor Yellow
+}
+
+# 5. 复制个人自定义配置与聚合词库定义 (*.custom.yaml & *.dict.yaml)
+Write-Host "⚙️  正在应用个人配置与 Rheatin Solarized 皮肤..." -ForegroundColor Cyan
 Copy-Item -Path (Join-Path $ScriptDir "*.custom.yaml") -Destination $RimeDir -Force
 Copy-Item -Path (Join-Path $ScriptDir "*.dict.yaml") -Destination $RimeDir -Force
 if (Test-Path (Join-Path $ScriptDir "custom_phrase.txt")) {
     Copy-Item -Path (Join-Path $ScriptDir "custom_phrase.txt") -Destination $RimeDir -Force
 }
-Write-Host "✅ 个人配置与扩展词库应用成功！" -ForegroundColor Green
+Write-Host "✅ 个人配置应用成功！" -ForegroundColor Green
 
-# 5. 导入跨平台历史词频快照
+# 6. 导入跨平台历史词频快照
 if (Test-Path (Join-Path $ScriptDir "sync")) {
     Write-Host "🧠 正在导入跨平台自造词与历史词频..." -ForegroundColor Cyan
     $TargetSync = Join-Path $RimeDir "sync"
@@ -142,7 +197,7 @@ if (Test-Path (Join-Path $ScriptDir "sync")) {
     Write-Host "✅ 跨平台词频快照就绪！" -ForegroundColor Green
 }
 
-# 6. 安装思源宋体 (若已安装则跳过)
+# 7. 安装思源宋体 (若已安装则跳过)
 $FontsSource = Join-Path $ScriptDir "fonts"
 if (Test-Path $FontsSource) {
     $UserFontsDir = Join-Path $env:LOCALAPPDATA "Microsoft\Windows\Fonts"
@@ -218,7 +273,7 @@ if (Test-Path $FontsSource) {
     }
 }
 
-# 7. 配置 Windows 用户资料同步自动 Push 守护服务
+# 8. 配置 Windows 用户资料同步自动 Push 守护服务
 Write-Host "⚡ 配置 Windows 用户资料同步自动 Push 守护服务..." -ForegroundColor Cyan
 $StartupFolder = [Environment]::GetFolderPath("Startup")
 $VbsPath = Join-Path $StartupFolder "RimeSyncWatcher.vbs"
@@ -233,7 +288,7 @@ Set-Content -Path $VbsPath -Value $VbsContent -Encoding ASCII
 Start-Process "wscript.exe" -ArgumentList "`"$VbsPath`"" -WindowStyle Hidden
 Write-Host "✅ 自动同步监听守护进程已激活！" -ForegroundColor Green
 
-# 8. 重新部署小狼毫
+# 9. 重新部署小狼毫
 Write-Host "🔄 正在部署小狼毫..." -ForegroundColor Cyan
 $Deployer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime", "${env:ProgramFiles}\Rime" -Filter "WeaselDeployer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 $WeaselServer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime", "${env:ProgramFiles}\Rime" -Filter "WeaselServer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -254,6 +309,6 @@ if ($TempDir -and (Test-Path $TempDir)) {
 }
 
 Write-Host "====================================================" -ForegroundColor Cyan
-Write-Host "🎉 全部安装、配置、MoeType 词库与词频恢复已完成！" -ForegroundColor Green
+Write-Host "🎉 全部安装、配置、MoeType 动态去重与词频恢复已完成！" -ForegroundColor Green
 Write-Host "💡 提示：在 Windows 托盘点击「用户资料同步」将自动同步并推送到 GitHub！" -ForegroundColor Yellow
 Write-Host "====================================================" -ForegroundColor Cyan
