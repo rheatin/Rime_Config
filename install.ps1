@@ -203,8 +203,8 @@ if (Test-Path $FontsSource) {
     Write-Host "✅ 思源宋体安装与即时注册完成！" -ForegroundColor Green
 }
 
-# 7. 配置 Windows 词典同步自动 Push 守护服务
-Write-Host "⚡ 配置 Windows 词典同步自动 Push 守护服务..." -ForegroundColor Cyan
+# 7. 配置 Windows 用户资料同步自动 Push 守护服务
+Write-Host "⚡ 配置 Windows 用户资料同步自动 Push 守护服务..." -ForegroundColor Cyan
 $StartupFolder = [Environment]::GetFolderPath("Startup")
 $VbsPath = Join-Path $StartupFolder "RimeSyncWatcher.vbs"
 $WatcherScriptPath = Join-Path $PermanentConfigDir "sync_watcher.ps1"
@@ -225,7 +225,6 @@ $Deployer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime", "${env:ProgramF
 $WeaselServer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime", "${env:ProgramFiles}\Rime" -Filter "WeaselServer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 
 if ($Deployer) {
-    # 使用 Start-Process 调用部署，完成后确保 Deployer 彻底退出
     Start-Process -FilePath $Deployer.FullName -ArgumentList "/deploy" -Wait
     Start-Process -FilePath $Deployer.FullName -ArgumentList "/sync" -Wait
     Stop-Process -Name "WeaselDeployer" -Force -ErrorAction SilentlyContinue
@@ -243,5 +242,5 @@ if ($TempDir -and (Test-Path $TempDir)) {
 
 Write-Host "====================================================" -ForegroundColor Cyan
 Write-Host "🎉 全部安装、配置与词频恢复已完成！" -ForegroundColor Green
-Write-Host "💡 提示：在 Windows 托盘点击「用户词典同步」将自动同步并推送到 GitHub！" -ForegroundColor Yellow
+Write-Host "💡 提示：在 Windows 托盘点击「用户资料同步」将自动同步并推送到 GitHub！" -ForegroundColor Yellow
 Write-Host "====================================================" -ForegroundColor Cyan
