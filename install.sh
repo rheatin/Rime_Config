@@ -109,13 +109,14 @@ else
   git clone --depth=1 "$RIME_ICE_URL" "$RIME_DIR"
 fi
 
-# 5. 同步个人精简配置 (*.custom.yaml)
-echo -e "${BLUE}⚙️  正在应用个人自定义配置...${NC}"
+# 5. 同步个人精简配置与扩展词库 (MoeType 萌娘百科)
+echo -e "${BLUE}⚙️  正在应用个人自定义配置与扩展词库...${NC}"
 cp -f "$SCRIPT_DIR"/*.custom.yaml "$RIME_DIR/" 2>/dev/null || true
+cp -f "$SCRIPT_DIR"/*.dict.yaml "$RIME_DIR/" 2>/dev/null || true
 if [ -f "$SCRIPT_DIR/custom_phrase.txt" ]; then
   cp -f "$SCRIPT_DIR/custom_phrase.txt" "$RIME_DIR/"
 fi
-echo -e "${GREEN}✅ 个人配置应用成功！${NC}"
+echo -e "${GREEN}✅ 个人配置与 MoeType 词库应用成功！${NC}"
 
 # 6. 安装思源宋体到系统字体库 (若已安装则跳过)
 if [ -d "$SCRIPT_DIR/fonts" ]; then
@@ -194,7 +195,7 @@ if [ -n "$TEMP_DIR" ] && [ -d "$TEMP_DIR" ]; then
 fi
 
 echo -e "${BLUE}====================================================${NC}"
-echo -e "${GREEN}🎉 恭喜！Rime 与 Rheatin Solarized 配置已全自动部署完毕！${NC}"
+echo -e "${GREEN}🎉 恭喜！Rime 与 Rheatin Solarized + MoeType 扩展词库已全自动部署完毕！${NC}"
 echo -e "${GREEN}🧠 个人自造词与词频记忆已完成合并恢复！${NC}"
 if [ "$PLATFORM" = "macos" ]; then
   echo -e "${YELLOW}提示：今后点击输入法菜单的「Sync user data」将自动备份推送到 GitHub！${NC}"

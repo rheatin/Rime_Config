@@ -124,13 +124,14 @@ if (Test-Path (Join-Path $RimeDir ".git")) {
 }
 Write-Host "✅ 雾凇拼音词库同步完成！" -ForegroundColor Green
 
-# 4. 复制个人自定义配置 (*.custom.yaml)
-Write-Host "⚙️  正在应用个人配置与 Rheatin Solarized 皮肤..." -ForegroundColor Cyan
+# 4. 复制个人自定义配置与 MoeType 扩展词库 (*.custom.yaml & *.dict.yaml)
+Write-Host "⚙️  正在应用个人配置、Rheatin Solarized 皮肤与 MoeType 词库..." -ForegroundColor Cyan
 Copy-Item -Path (Join-Path $ScriptDir "*.custom.yaml") -Destination $RimeDir -Force
+Copy-Item -Path (Join-Path $ScriptDir "*.dict.yaml") -Destination $RimeDir -Force
 if (Test-Path (Join-Path $ScriptDir "custom_phrase.txt")) {
     Copy-Item -Path (Join-Path $ScriptDir "custom_phrase.txt") -Destination $RimeDir -Force
 }
-Write-Host "✅ 个人配置应用成功！" -ForegroundColor Green
+Write-Host "✅ 个人配置与扩展词库应用成功！" -ForegroundColor Green
 
 # 5. 导入跨平台历史词频快照
 if (Test-Path (Join-Path $ScriptDir "sync")) {
@@ -141,7 +142,7 @@ if (Test-Path (Join-Path $ScriptDir "sync")) {
     Write-Host "✅ 跨平台词频快照就绪！" -ForegroundColor Green
 }
 
-# 6. 安装思源宋体 (若已安装则跳过，杜绝重复安装)
+# 6. 安装思源宋体 (若已安装则跳过)
 $FontsSource = Join-Path $ScriptDir "fonts"
 if (Test-Path $FontsSource) {
     $UserFontsDir = Join-Path $env:LOCALAPPDATA "Microsoft\Windows\Fonts"
@@ -229,7 +230,6 @@ Copy-Item -Path (Join-Path $ScriptDir "sync_watcher.ps1") -Destination $Permanen
 $VbsContent = "CreateObject(`"Wscript.Shell`").Run `"powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"`"$WatcherScriptPath`"`"`", 0, False"
 Set-Content -Path $VbsPath -Value $VbsContent -Encoding ASCII
 
-# 启动 Watcher 监听进程
 Start-Process "wscript.exe" -ArgumentList "`"$VbsPath`"" -WindowStyle Hidden
 Write-Host "✅ 自动同步监听守护进程已激活！" -ForegroundColor Green
 
@@ -245,7 +245,6 @@ if ($Deployer) {
     Write-Host "🎉 部署完成！" -ForegroundColor Green
 }
 
-# 重新启动 WeaselServer 服务
 if ($WeaselServer) {
     Start-Process -FilePath $WeaselServer.FullName
 }
@@ -255,6 +254,6 @@ if ($TempDir -and (Test-Path $TempDir)) {
 }
 
 Write-Host "====================================================" -ForegroundColor Cyan
-Write-Host "🎉 全部安装、配置与词频恢复已完成！" -ForegroundColor Green
+Write-Host "🎉 全部安装、配置、MoeType 词库与词频恢复已完成！" -ForegroundColor Green
 Write-Host "💡 提示：在 Windows 托盘点击「用户资料同步」将自动同步并推送到 GitHub！" -ForegroundColor Yellow
 Write-Host "====================================================" -ForegroundColor Cyan
