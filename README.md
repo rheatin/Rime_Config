@@ -8,11 +8,14 @@
 
 - 🌐 **全平台智能自适应**：
   - **macOS**：自动安装并配置 **Squirrel (鼠须管)**
-  - **Linux** (Ubuntu / Debian / Arch / Fedora 等)：自动识别包管理器安装 **Fcitx5-rime**
-  - **Windows**：PowerShell 脚本自动安装并配置 **Weasel (小狼毫)**
-- 🧠 **自造词与个人词频记忆双向备份**：内置 `sync.sh` 脚本，换机时自动无损合并恢复平时打字积累的高频词和自造词组！
-- 🎨 **Rheatin Solarized 配色**：个性化定制的 Solarized 深色主题与微距排版（`candidate_format`）。
-- 🔤 **思源宋体 Heavy 原生支持**：自动将思源宋体（简/繁）安装至系统字体库，无需手动操作。
+  - **Windows**：自动安装并配置 **Weasel (小狼毫)**
+  - **Linux** (Ubuntu / Debian / Arch / Fedora 等)：自动安装 **Fcitx5-rime**
+- 🔄 **双向跨平台自造词与词频实时云同步**：
+  - **macOS**：点击状态栏「Sync user data」➔ 自动静默 Push 到 GitHub 并弹窗通知；
+  - **Windows**：点击托盘「用户词典同步」➔ 自动静默 Push 到 GitHub 并弹气泡通知；
+  - **无损双向合并**：Mac 打出来的生词会自动同步给 Windows，Windows 打出来的生词也会自动同步给 Mac！
+- 🎨 **Rheatin Solarized 配色**：专属深色毛玻璃/悬浮胶囊排版。
+- 🔤 **思源宋体 Heavy 原生支持**：自动将思源宋体（简/繁）安装至系统字体库。
 - ⚡ **配置/词库完全解耦**：采用纯净的 `*.custom.yaml` 补丁机制，可随时平滑跟随官方升级词库。
 
 ---
@@ -20,7 +23,7 @@
 ## 🚀 各平台一键安装方法 (新电脑)
 
 ### 1. macOS / Linux
-在终端中执行单行命令（自动检测系统并完成全流程安装与词频合并）：
+在终端中执行单行命令：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/rheatin/Rime_Config/main/install.sh | bash
@@ -35,33 +38,15 @@ irm https://raw.githubusercontent.com/rheatin/Rime_Config/main/install.ps1 | iex
 
 ---
 
-## 🔄 日常：一键备份最新自造词与词频
-
-平时打字积累了新的高频词或习惯后，只需在终端运行一次 `sync.sh`：
-
-```bash
-~/Rime_Config/sync.sh
-```
-
-**`sync.sh` 会自动完成：**
-1. 触发本地 Rime 导出最新的词频快照（`rime_ice.userdb.txt`）；
-2. 自动归档并 commit；
-3. 自动 push 同步到 GitHub 远程仓库！
-
----
-
-## 📂 仓库结构
+## 🔄 双端词频无缝合并机制
 
 ```text
-.
-├── install.sh              # macOS & Linux 全自动安装部署脚本
-├── install.ps1             # Windows (小狼毫) 全自动安装脚本
-├── sync.sh                 # 🔄 一键备份词频与自造词到 GitHub
-├── default.custom.yaml     # 候选词数量及中英切换快捷键
-├── squirrel.custom.yaml    # 鼠须管外观、应用行为与 Rheatin Solarized 配色 (macOS)
-├── weasel.custom.yaml      # 小狼毫外观与 Rheatin Solarized 配色 (Windows)
-├── rime_ice.custom.yaml    # 雾凇拼音行为定制
-├── fonts/                  # 思源宋体 (Heavy) 字体源文件
-├── sync/                   # 🧠 个人自造词与高频词快照归档
-└── README.md
+[Mac 端输入自造词] ──点击 Sync──> GitHub 仓库 (sync/MBA/rime_ice.userdb.txt)
+                                        │
+                                        ▼ 自动合并
+[Win 端输入自造词] ──点击 Sync──> GitHub 仓库 (sync/WIN-xxx/rime_ice.userdb.txt)
 ```
+
+1. **Mac 上**：点击菜单栏「Sync user data」；
+2. **Windows 上**：右键托盘小狼毫图标 -> 点击「用户词典同步」；
+3. **两端互通**：每次同步都会自动将对方电脑的新词和词频合并到本地！
