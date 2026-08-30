@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.rheatin.rime.sync</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>TARGET_SCRIPT_PATH</string>
+        <string>--auto</string>
+    </array>
+    <key>WatchPaths</key>
+    <array>
+        <string>TARGET_SYNC_PATH</string>
+    </array>
+    <key>ThrottleInterval</key>
+    <integer>5</integer>
+    <key>StandardOutPath</key>
+    <string>/tmp/rime_sync.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/rime_sync.err</string>
+</dict>
+</plist>

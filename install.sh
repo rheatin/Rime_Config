@@ -136,7 +136,29 @@ if [ -d "$SCRIPT_DIR/sync" ]; then
   echo -e "${GREEN}✅ 词频快照就绪！${NC}"
 fi
 
-# 8. 重新部署与合并词频生效
+# 8. 配置 macOS 状态栏「Sync user data」点击自动 Push 到 GitHub 的监听服务
+if [ "$PLATFORM" = "macos" ]; then
+  echo -e "${BLUE}⚡ 配置「Sync user data」自动推送 GitHub 守护进程...${NC}"
+  LAUNCH_AGENT_DIR="$HOME/Library/LaunchAgents"
+  PLIST_FILE="$LAUNCH_AGENT_DIR/com.rheatin.rime.sync.plist"
+  mkdir -p "$LAUNCH_AGENT_DIR"
+  
+  TARGET_REPO_DIR="$HOME/Rime_Config"
+  if [ ! -d "$TARGET_REPO_DIR" ]; then
+    git clone "$REPO_URL" "$TARGET_REPO_DIR" 2>/dev/null || true
+  fi
+  chmod +x "$TARGET_REPO_DIR/sync.sh" 2>/dev/null || true
+
+  sed -e "s|TARGET_SCRIPT_PATH|$TARGET_REPO_DIR/sync.sh|g" \
+      -e "s|TARGET_SYNC_PATH|$RIME_DIR/sync|g" \
+      "$SCRIPT_DIR/com.rheatin.rime.sync.plist" > "$PLIST_FILE"
+
+  launchctl unload "$PLIST_FILE" 2>/dev/null || true
+  launchctl load "$PLIST_FILE" 2>/dev/null || true
+  echo -e "${GREEN}✅ 菜单栏同步监听已激活！${NC}"
+fi
+
+# 9. 重新部署与合并词频生效
 echo -e "${BLUE}🔄 触发 Rime 重新部署与词频合并...${NC}"
 if [ "$PLATFORM" = "macos" ]; then
   if [ -f "$SQUIRREL_APP/Contents/MacOS/Squirrel" ]; then
@@ -161,8 +183,6 @@ echo -e "${BLUE}====================================================${NC}"
 echo -e "${GREEN}🎉 恭喜！Rime 与 Rheatin Solarized 配置已全自动部署完毕！${NC}"
 echo -e "${GREEN}🧠 个人自造词与词频记忆已完成合并恢复！${NC}"
 if [ "$PLATFORM" = "macos" ]; then
-  echo -e "${YELLOW}提示：若首次安装 Squirrel，请在「系统设置 -> 键盘 -> 输入法」添加「鼠须管」。${NC}"
-elif [ "$PLATFORM" = "linux" ]; then
-  echo -e "${YELLOW}提示：若首次使用，请在 Fcitx5 / IBus 配置中将 Rime 添加为当前输入方案。${NC}"
+  echo -e "${YELLOW}提示：今后点击输入法菜单的「Sync user data」将自动备份推送到 GitHub！${NC}"
 fi
 echo -e "${BLUE}====================================================${NC}"
