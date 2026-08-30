@@ -1,0 +1,12 @@
+# Rime Extended Dictionary
+# 聚合 雾凇拼音核心词库 与 MoeType (萌娘百科) 词库
+
+---
+name: rime_ice.extended
+version: "2026.08.30"
+sort: by_weight
+use_preset_vocabulary: false
+import_tables:
+  - rime_ice
+  - moe
+...

@@ -1,6 +1,6 @@
 # ❄️ Rime_Config (个人跨平台 Rime 鼠须管 / 小狼毫 / Fcitx5 自动化配置)
 
-基于 [雾凇拼音 (rime-ice)](https://github.com/iDvel/rime-ice) 深度定制的个人跨平台输入法配置库。
+基于 [雾凇拼音 (rime-ice)](https://github.com/iDvel/rime-ice) 深度定制的个人跨平台输入法配置库，已挂载 [MoeType (萌娘百科)](https://github.com/suiginko/moetype) 扩展词库。
 
 ---
 
@@ -10,12 +10,15 @@
   - **macOS**：自动安装并配置 **Squirrel (鼠须管)**
   - **Windows**：自动安装并配置 **Weasel (小狼毫)**
   - **Linux** (Ubuntu / Debian / Arch / Fedora 等)：自动安装 **Fcitx5-rime**
+- 📚 **海量词库矩阵**：
+  - **雾凇拼音 (190万词)**：现代汉语、成语、日常互联网高频词；
+  - **MoeType 萌娘百科 (20万词)**：二次元角色、动漫番剧、游戏装备与网络热梗。
 - 🔄 **双向跨平台自造词与词频实时云同步**：
   - **macOS**：点击状态栏「Sync user data」➔ 自动静默 Push 到 GitHub 并弹窗通知；
-  - **Windows**：点击托盘「用户词典同步」➔ 自动静默 Push 到 GitHub 并弹气泡通知；
-  - **无损双向合并**：Mac 打出来的生词会自动同步给 Windows，Windows 打出来的生词也会自动同步给 Mac！
-- 🎨 **Rheatin Solarized 配色**：专属深色毛玻璃/悬浮胶囊排版。
-- 🔤 **思源宋体 Heavy 原生支持**：自动将思源宋体（简/繁）安装至系统字体库。
+  - **Windows**：点击托盘「用户资料同步」➔ 自动静默 Push 到 GitHub 并弹气泡通知；
+  - **双向互通合并**：Mac 与 Windows 之间的打字习惯和自造词永远保持双向合并与实时互通。
+- 🎨 **Rheatin Solarized 配色**：专属深色毛玻璃/悬浮小胶囊排版。
+- 🔤 **思源宋体 Heavy 原生支持**：智能检测系统字体库，按需自动安装。
 - ⚡ **配置/词库完全解耦**：采用纯净的 `*.custom.yaml` 补丁机制，可随时平滑跟随官方升级词库。
 
 ---
@@ -38,15 +41,22 @@ irm https://raw.githubusercontent.com/rheatin/Rime_Config/main/install.ps1 | iex
 
 ---
 
-## 🔄 双端词频无缝合并机制
+## 📂 仓库结构
 
 ```text
-[Mac 端输入自造词] ──点击 Sync──> GitHub 仓库 (sync/MBA/rime_ice.userdb.txt)
-                                        │
-                                        ▼ 自动合并
-[Win 端输入自造词] ──点击 Sync──> GitHub 仓库 (sync/WIN-xxx/rime_ice.userdb.txt)
+.
+├── install.sh                  # macOS & Linux 全自动安装部署脚本
+├── install.ps1                 # Windows (小狼毫) 全自动安装脚本
+├── sync.sh                     # 🔄 macOS/Linux 一键词频同步
+├── sync.ps1                    # 🔄 Windows 一键词频同步
+├── sync_watcher.ps1            # ⚡ Windows 后台变动监听守护服务
+├── default.custom.yaml         # 候选词数量及中英切换快捷键
+├── squirrel.custom.yaml        # 鼠须管外观、应用行为与 Rheatin Solarized 配色 (macOS)
+├── weasel.custom.yaml          # 小狼毫外观与 Rheatin Solarized 配色 (Windows)
+├── rime_ice.custom.yaml        # 雾凇拼音行为定制与扩展词库指向
+├── rime_ice.extended.dict.yaml # 聚合词库入口 (雾凇拼音 + 萌娘百科)
+├── moe.dict.yaml               # MoeType (萌娘百科 20 万词库)
+├── fonts/                      # 思源宋体 (Heavy) 字体源文件
+├── sync/                       # 🧠 个人自造词与跨平台词频快照归档
+└── README.md
 ```
-
-1. **Mac 上**：点击菜单栏「Sync user data」；
-2. **Windows 上**：右键托盘小狼毫图标 -> 点击「用户词典同步」；
-3. **两端互通**：每次同步都会自动将对方电脑的新词和词频合并到本地！
