@@ -1,18 +1,19 @@
 # ❄️ Rime_Config (个人跨平台 Rime 鼠须管 / 小狼毫 / Fcitx5 自动化配置)
 
-基于 [雾凇拼音 (rime-ice)](https://github.com/iDvel/rime-ice) 深度定制的个人跨平台输入法配置库，已挂载 [MoeType (萌娘百科)](https://github.com/suiginko/moetype) 扩展词库。
+基于 [雾凇拼音 (rime-ice)](https://github.com/iDvel/rime-ice) 深度定制的个人跨平台输入法配置库，支持自动联网挂载 [MoeType (萌娘百科)](https://github.com/suiginko/moetype) 扩展词库。
 
 ---
 
 ## ✨ 核心特性
 
+- 🚀 **极致轻量 Repo**：不存放第三方大词库，部署时全自动从官方源下载 MoeType 最新 Release 并**动态去重**生成纯增量词库！
 - 🌐 **全平台智能自适应**：
   - **macOS**：自动安装并配置 **Squirrel (鼠须管)**
   - **Windows**：自动安装并配置 **Weasel (小狼毫)**
   - **Linux** (Ubuntu / Debian / Arch / Fedora 等)：自动安装 **Fcitx5-rime**
 - 📚 **海量词库矩阵**：
   - **雾凇拼音 (190万词)**：现代汉语、成语、日常互联网高频词；
-  - **MoeType 萌娘百科 (20万词)**：二次元角色、动漫番剧、游戏装备与网络热梗。
+  - **MoeType 萌娘百科 (16.5万纯增量词)**：二次元角色、动漫番剧、游戏装备与网络热梗。
 - 🔄 **双向跨平台自造词与词频实时云同步**：
   - **macOS**：点击状态栏「Sync user data」➔ 自动静默 Push 到 GitHub 并弹窗通知；
   - **Windows**：点击托盘「用户资料同步」➔ 自动静默 Push 到 GitHub 并弹气泡通知；
@@ -45,8 +46,8 @@ irm https://raw.githubusercontent.com/rheatin/Rime_Config/main/install.ps1 | iex
 
 ```text
 .
-├── install.sh                  # macOS & Linux 全自动安装部署脚本
-├── install.ps1                 # Windows (小狼毫) 全自动安装脚本
+├── install.sh                  # macOS & Linux 全自动安装部署脚本 (含 MoeType 动态下载去重)
+├── install.ps1                 # Windows (小狼毫) 全自动安装脚本 (含 MoeType 动态下载去重)
 ├── sync.sh                     # 🔄 macOS/Linux 一键词频同步
 ├── sync.ps1                    # 🔄 Windows 一键词频同步
 ├── sync_watcher.ps1            # ⚡ Windows 后台变动监听守护服务
@@ -55,7 +56,6 @@ irm https://raw.githubusercontent.com/rheatin/Rime_Config/main/install.ps1 | iex
 ├── weasel.custom.yaml          # 小狼毫外观与 Rheatin Solarized 配色 (Windows)
 ├── rime_ice.custom.yaml        # 雾凇拼音行为定制与扩展词库指向
 ├── rime_ice.extended.dict.yaml # 聚合词库入口 (雾凇拼音 + 萌娘百科)
-├── moe.dict.yaml               # MoeType (萌娘百科 20 万词库)
 ├── fonts/                      # 思源宋体 (Heavy) 字体源文件
 ├── sync/                       # 🧠 个人自造词与跨平台词频快照归档
 └── README.md
