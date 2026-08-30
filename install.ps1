@@ -10,6 +10,7 @@ Write-Host "       🚀 开始配置 Rime 雾凇拼音与个人环境 (Windows) 
 Write-Host "====================================================" -ForegroundColor Cyan
 
 $RimeDir = Join-Path $env:APPDATA "Rime"
+$PermanentConfigDir = Join-Path $env:USERPROFILE "Rime_Config"
 $RepoUrl = "https://github.com/rheatin/Rime_Config.git"
 $RepoZipUrl = "https://github.com/rheatin/Rime_Config/archive/refs/heads/main.zip"
 $RimeIceUrl = "https://github.com/iDvel/rime-ice.git"
@@ -56,6 +57,15 @@ if ($NeedDownload) {
     $ScriptDir = $TempDir
 }
 
+# 永久保留一套配置仓库于本地用户目录 (供 sync 脚本与守护服务使用)
+if (-not (Test-Path $PermanentConfigDir)) {
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+        git clone $RepoUrl $PermanentConfigDir 2>$null
+    } else {
+        Copy-Item -Path $ScriptDir -Destination $PermanentConfigDir -Recurse -Force
+    }
+}
+
 # 2. 检测与安装 Weasel (小狼毫)
 $WeaselDir = "${env:ProgramFiles(x86)}\Rime\weasel-*"
 $WeaselInstalled = (Test-Path $WeaselDir) -or (Test-Path "${env:ProgramFiles}\Rime\weasel-*")
@@ -77,7 +87,7 @@ if (-not $WeaselInstalled) {
     Write-Host "✅ 检测到已安装小狼毫 (Weasel)" -ForegroundColor Green
 }
 
-# 3. 拉取/同步 雾凇拼音 (rime-ice) 词库底座 (解决非空目录报错)
+# 3. 拉取/同步 雾凇拼音 (rime-ice) 词库底座
 Write-Host "❄️  正在同步 雾凇拼音 (rime-ice) 官方词库..." -ForegroundColor Cyan
 if (-not (Test-Path $RimeDir)) {
     New-Item -ItemType Directory -Path $RimeDir -Force | Out-Null
@@ -112,16 +122,16 @@ if (Test-Path (Join-Path $ScriptDir "custom_phrase.txt")) {
 }
 Write-Host "✅ 个人配置应用成功！" -ForegroundColor Green
 
-# 5. 导入个人历史词频快照
+# 5. 导入跨平台 (Mac/云端) 历史词频与自造词快照
 if (Test-Path (Join-Path $ScriptDir "sync")) {
-    Write-Host "🧠 正在同步历史自造词与词频快照..." -ForegroundColor Cyan
+    Write-Host "🧠 正在导入跨平台自造词与历史词频..." -ForegroundColor Cyan
     $TargetSync = Join-Path $RimeDir "sync"
     if (-not (Test-Path $TargetSync)) { New-Item -ItemType Directory -Path $TargetSync -Force | Out-Null }
     Copy-Item -Path (Join-Path $ScriptDir "sync\*") -Destination $TargetSync -Recurse -Force
-    Write-Host "✅ 词频快照就绪！" -ForegroundColor Green
+    Write-Host "✅ 跨平台词频快照就绪！" -ForegroundColor Green
 }
 
-# 6. 安装思源宋体 (自动处理文件被占用与多名称注册)
+# 6. 安装思源宋体到 Windows 系统
 $FontsSource = Join-Path $ScriptDir "fonts"
 if (Test-Path $FontsSource) {
     Write-Host "🔤 正在安装并注册思源宋体..." -ForegroundColor Cyan
@@ -130,7 +140,6 @@ if (Test-Path $FontsSource) {
     
     $RegKeyPath = "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Fonts"
     
-    # C# API 动态调用 AddFontResource
     $TypeDefinition = @"
     using System;
     using System.Runtime.InteropServices;
@@ -145,7 +154,6 @@ if (Test-Path $FontsSource) {
         Add-Type -TypeDefinition $TypeDefinition -ErrorAction SilentlyContinue
     }
 
-    # 首先尝试通过 Shell API 进行系统级标准字体安装
     try {
         $ShellApp = New-Object -ComObject Shell.Application
         $FontsFolder = $ShellApp.Namespace(0x14)
@@ -157,7 +165,6 @@ if (Test-Path $FontsSource) {
         }
     } catch {}
 
-    # 用户目录注册容错处理
     Get-ChildItem -Path $FontsSource -Filter "*.otf" | ForEach-Object {
         $FontName = $_.Name
         $DestPath = Join-Path $UserFontsDir $FontName
@@ -165,12 +172,9 @@ if (Test-Path $FontsSource) {
         if (-not (Test-Path $DestPath)) {
             try {
                 Copy-Item -Path $_.FullName -Destination $DestPath -Force -ErrorAction Stop
-            } catch {
-                # 如果被占用则说明字体已被加载
-            }
+            } catch {}
         }
         
-        # 写入多种格式的注册表键名，确保 GDI/DirectWrite 完全匹配
         $Aliases = @(
             "$($_.BaseName) (TrueType)",
             "$($_.BaseName) (OpenType)",
@@ -183,38 +187,43 @@ if (Test-Path $FontsSource) {
         }
         
         try { [FontHelper]::AddFontResource($DestPath) | Out-Null } catch {}
-        try { [FontHelper]::AddFontResource($_.FullName) | Out-Null } catch {}
     }
     try { [FontHelper]::SendMessage([IntPtr]0xffff, 0x001D, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null } catch {}
     Write-Host "✅ 思源宋体安装与即时注册完成！" -ForegroundColor Green
 }
 
-# 7. 重启 Weasel 服务并重新部署
-Write-Host "🔄 正在重启小狼毫服务并重新部署..." -ForegroundColor Cyan
+# 7. 配置 Windows 托盘「用户词典同步」自动 Push 到 GitHub 守护服务
+Write-Host "⚡ 配置 Windows 词典同步自动 Push 守护服务..." -ForegroundColor Cyan
+$StartupFolder = [Environment]::GetFolderPath("Startup")
+$VbsPath = Join-Path $StartupFolder "RimeSyncWatcher.vbs"
+$WatcherScriptPath = Join-Path $PermanentConfigDir "sync_watcher.ps1"
 
-# 彻底终止可能锁定旧配置的后台进程
+# 复制 sync 相关脚本到永久目录
+Copy-Item -Path (Join-Path $ScriptDir "sync.ps1") -Destination $PermanentConfigDir -Force
+Copy-Item -Path (Join-Path $ScriptDir "sync_watcher.ps1") -Destination $PermanentConfigDir -Force
+
+$VbsContent = "CreateObject(`"Wscript.Shell`").Run `"powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"`"$WatcherScriptPath`"`"`", 0, False"
+Set-Content -Path $VbsPath -Value $VbsContent -Encoding ASCII
+
+# 立即在后台静默启动 Watcher
+Start-Process "wscript.exe" -ArgumentList "`"$VbsPath`"" -WindowStyle Hidden
+Write-Host "✅ 自动同步监听守护进程已激活！" -ForegroundColor Green
+
+# 8. 重启 Weasel 服务并重新部署与双向合并
+Write-Host "🔄 正在重启小狼毫服务并重新部署..." -ForegroundColor Cyan
 Stop-Process -Name "WeaselServer" -Force -ErrorAction SilentlyContinue
 Stop-Process -Name "WeaselDeployer" -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 1
 
-# 查找 WeaselDeployer 路径
-$Deployer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime" -Filter "WeaselDeployer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-if (-not $Deployer) {
-    $Deployer = Get-ChildItem -Path "${env:ProgramFiles}\Rime" -Filter "WeaselDeployer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-}
-
-$WeaselServer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime" -Filter "WeaselServer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-if (-not $WeaselServer) {
-    $WeaselServer = Get-ChildItem -Path "${env:ProgramFiles}\Rime" -Filter "WeaselServer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-}
+$Deployer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime", "${env:ProgramFiles}\Rime" -Filter "WeaselDeployer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+$WeaselServer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime", "${env:ProgramFiles}\Rime" -Filter "WeaselServer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 
 if ($Deployer) {
     Start-Process -FilePath $Deployer.FullName -ArgumentList "/deploy" -Wait
     Start-Process -FilePath $Deployer.FullName -ArgumentList "/sync" -Wait
-    Write-Host "🎉 部署与词频合并完成！" -ForegroundColor Green
+    Write-Host "🎉 部署与双向词频合并完成！" -ForegroundColor Green
 }
 
-# 重新唤起小狼毫服务
 if ($WeaselServer) {
     Start-Process -FilePath $WeaselServer.FullName
 }
@@ -225,4 +234,5 @@ if ($TempDir -and (Test-Path $TempDir)) {
 
 Write-Host "====================================================" -ForegroundColor Cyan
 Write-Host "🎉 全部安装、配置与词频恢复已完成！" -ForegroundColor Green
+Write-Host "💡 提示：在 Windows 托盘点击「用户词典同步」将自动同步并推送到 GitHub！" -ForegroundColor Yellow
 Write-Host "====================================================" -ForegroundColor Cyan
