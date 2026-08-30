@@ -69,7 +69,6 @@ if (-not (Test-Path $PermanentConfigDir)) {
         Copy-Item -Path $ScriptDir -Destination $PermanentConfigDir -Recurse -Force
     }
 } else {
-    # 如果已存在，拉取更新
     if (Test-Path (Join-Path $PermanentConfigDir ".git")) {
         Push-Location $PermanentConfigDir
         try { git pull --rebase origin main 2>$null } catch {}
@@ -142,65 +141,80 @@ if (Test-Path (Join-Path $ScriptDir "sync")) {
     Write-Host "✅ 跨平台词频快照就绪！" -ForegroundColor Green
 }
 
-# 6. 安装思源宋体到 Windows 系统
+# 6. 安装思源宋体 (若已安装则跳过，杜绝重复安装)
 $FontsSource = Join-Path $ScriptDir "fonts"
 if (Test-Path $FontsSource) {
-    Write-Host "🔤 正在安装并注册思源宋体..." -ForegroundColor Cyan
     $UserFontsDir = Join-Path $env:LOCALAPPDATA "Microsoft\Windows\Fonts"
-    if (-not (Test-Path $UserFontsDir)) { New-Item -ItemType Directory -Path $UserFontsDir -Force | Out-Null }
+    $SystemFontsDir = Join-Path $env:WINDIR "Fonts"
     
-    $RegKeyPath = "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Fonts"
-    
-    $TypeDefinition = @"
-    using System;
-    using System.Runtime.InteropServices;
-    public class FontHelper {
-        [DllImport("gdi32.dll", EntryPoint = "AddFontResourceW", SetLastError = true)]
-        public static extern int AddFontResource([In, MarshalAs(UnmanagedType.LPWStr)] string lpFileName);
-        [DllImport("user32.dll")]
-        public static extern int SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
-    }
-"@
-    if (-not ([System.Management.Automation.PSTypeName]'FontHelper').Type) {
-        Add-Type -TypeDefinition $TypeDefinition -ErrorAction SilentlyContinue
-    }
-
-    try {
-        $ShellApp = New-Object -ComObject Shell.Application
-        $FontsFolder = $ShellApp.Namespace(0x14)
-        Get-ChildItem -Path $FontsSource -Filter "*.otf" | ForEach-Object {
-            $TargetSystemFont = Join-Path $env:WINDIR "Fonts\$($_.Name)"
-            if (-not (Test-Path $TargetSystemFont)) {
-                $FontsFolder.CopyHere($_.FullName, 16)
-            }
-        }
-    } catch {}
-
+    $AllInstalled = $true
     Get-ChildItem -Path $FontsSource -Filter "*.otf" | ForEach-Object {
-        $FontName = $_.Name
-        $DestPath = Join-Path $UserFontsDir $FontName
-        
-        if (-not (Test-Path $DestPath)) {
-            try {
-                Copy-Item -Path $_.FullName -Destination $DestPath -Force -ErrorAction Stop
-            } catch {}
+        $InstalledInUser = Test-Path (Join-Path $UserFontsDir $_.Name)
+        $InstalledInSys = Test-Path (Join-Path $SystemFontsDir $_.Name)
+        if (-not ($InstalledInUser -or $InstalledInSys)) {
+            $AllInstalled = $false
         }
-        
-        $Aliases = @(
-            "$($_.BaseName) (TrueType)",
-            "$($_.BaseName) (OpenType)",
-            "Source Han Serif SC Heavy (OpenType)",
-            "Source Han Serif TC Heavy (OpenType)",
-            "思源宋体 Heavy (OpenType)"
-        )
-        foreach ($alias in $Aliases) {
-            Set-ItemProperty -Path $RegKeyPath -Name $alias -Value $DestPath -Force -ErrorAction SilentlyContinue
-        }
-        
-        try { [FontHelper]::AddFontResource($DestPath) | Out-Null } catch {}
     }
-    try { [FontHelper]::SendMessage([IntPtr]0xffff, 0x001D, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null } catch {}
-    Write-Host "✅ 思源宋体安装与即时注册完成！" -ForegroundColor Green
+
+    if ($AllInstalled) {
+        Write-Host "✅ 检测到思源宋体已安装，自动跳过安装流程！" -ForegroundColor Green
+    } else {
+        Write-Host "🔤 正在安装并注册思源宋体..." -ForegroundColor Cyan
+        if (-not (Test-Path $UserFontsDir)) { New-Item -ItemType Directory -Path $UserFontsDir -Force | Out-Null }
+        
+        $RegKeyPath = "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Fonts"
+        
+        $TypeDefinition = @"
+        using System;
+        using System.Runtime.InteropServices;
+        public class FontHelper {
+            [DllImport("gdi32.dll", EntryPoint = "AddFontResourceW", SetLastError = true)]
+            public static extern int AddFontResource([In, MarshalAs(UnmanagedType.LPWStr)] string lpFileName);
+            [DllImport("user32.dll")]
+            public static extern int SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+        }
+"@
+        if (-not ([System.Management.Automation.PSTypeName]'FontHelper').Type) {
+            Add-Type -TypeDefinition $TypeDefinition -ErrorAction SilentlyContinue
+        }
+
+        try {
+            $ShellApp = New-Object -ComObject Shell.Application
+            $FontsFolder = $ShellApp.Namespace(0x14)
+            Get-ChildItem -Path $FontsSource -Filter "*.otf" | ForEach-Object {
+                $TargetSystemFont = Join-Path $SystemFontsDir $_.Name
+                if (-not (Test-Path $TargetSystemFont)) {
+                    $FontsFolder.CopyHere($_.FullName, 16)
+                }
+            }
+        } catch {}
+
+        Get-ChildItem -Path $FontsSource -Filter "*.otf" | ForEach-Object {
+            $FontName = $_.Name
+            $DestPath = Join-Path $UserFontsDir $FontName
+            
+            if (-not (Test-Path $DestPath)) {
+                try {
+                    Copy-Item -Path $_.FullName -Destination $DestPath -Force -ErrorAction Stop
+                } catch {}
+            }
+            
+            $Aliases = @(
+                "$($_.BaseName) (TrueType)",
+                "$($_.BaseName) (OpenType)",
+                "Source Han Serif SC Heavy (OpenType)",
+                "Source Han Serif TC Heavy (OpenType)",
+                "思源宋体 Heavy (OpenType)"
+            )
+            foreach ($alias in $Aliases) {
+                Set-ItemProperty -Path $RegKeyPath -Name $alias -Value $DestPath -Force -ErrorAction SilentlyContinue
+            }
+            
+            try { [FontHelper]::AddFontResource($DestPath) | Out-Null } catch {}
+        }
+        try { [FontHelper]::SendMessage([IntPtr]0xffff, 0x001D, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null } catch {}
+        Write-Host "✅ 思源宋体安装与即时注册完成！" -ForegroundColor Green
+    }
 }
 
 # 7. 配置 Windows 用户资料同步自动 Push 守护服务

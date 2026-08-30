@@ -117,15 +117,29 @@ if [ -f "$SCRIPT_DIR/custom_phrase.txt" ]; then
 fi
 echo -e "${GREEN}✅ 个人配置应用成功！${NC}"
 
-# 6. 安装思源宋体到系统字体库
-echo -e "${BLUE}🔤 正在安装思源宋体到系统字体库...${NC}"
-mkdir -p "$FONTS_DIR"
+# 6. 安装思源宋体到系统字体库 (若已安装则跳过)
 if [ -d "$SCRIPT_DIR/fonts" ]; then
-  cp -f "$SCRIPT_DIR/fonts/"* "$FONTS_DIR/"
-  if [ "$PLATFORM" = "linux" ] && command -v fc-cache >/dev/null 2>&1; then
-    fc-cache -f "$FONTS_DIR" >/dev/null 2>&1 || true
+  FONTS_EXIST=true
+  for f in "$SCRIPT_DIR/fonts/"*.otf; do
+    [ -f "$f" ] || continue
+    FONT_NAME="$(basename "$f")"
+    if [ ! -f "$FONTS_DIR/$FONT_NAME" ] && [ ! -f "/Library/Fonts/$FONT_NAME" ] && [ ! -f "/usr/share/fonts/$FONT_NAME" ]; then
+      FONTS_EXIST=false
+      break
+    fi
+  done
+
+  if [ "$FONTS_EXIST" = true ]; then
+    echo -e "${GREEN}✅ 检测到思源宋体已安装，自动跳过字体安装！${NC}"
+  else
+    echo -e "${BLUE}🔤 正在安装思源宋体到系统字体库...${NC}"
+    mkdir -p "$FONTS_DIR"
+    cp -f "$SCRIPT_DIR/fonts/"* "$FONTS_DIR/"
+    if [ "$PLATFORM" = "linux" ] && command -v fc-cache >/dev/null 2>&1; then
+      fc-cache -f "$FONTS_DIR" >/dev/null 2>&1 || true
+    fi
+    echo -e "${GREEN}✅ 字体安装完成！${NC}"
   fi
-  echo -e "${GREEN}✅ 字体安装完成！${NC}"
 fi
 
 # 7. 导入个人自造词与历史词频记忆
