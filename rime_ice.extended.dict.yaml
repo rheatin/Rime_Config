@@ -1,5 +1,5 @@
 # Rime Extended Dictionary
-# 聚合 雾凇拼音核心词库 与 MoeType (萌娘百科) 词库
+# 聚合 雾凇拼音全量词库 (8105单字 + 基础词 + 扩展词 + 腾讯词向量) 与 MoeType (萌娘百科) 词库
 
 ---
 name: rime_ice.extended
@@ -7,6 +7,11 @@ version: "2026.08.30"
 sort: by_weight
 use_preset_vocabulary: false
 import_tables:
-  - rime_ice
-  - moe
+  - cn_dicts/8105     # 核心常用汉字表 (船、你、我、他等全部在这里)
+  - cn_dicts/41448    # 大字表生僻字
+  - cn_dicts/base     # 核心两字词与常用词
+  - cn_dicts/ext      # 扩展多音字词
+  - cn_dicts/tencent  # 腾讯百万大词库
+  - cn_dicts/others   # 杂项
+  - moe               # 萌娘百科 (MoeType 20万二次元词库)
 ...
