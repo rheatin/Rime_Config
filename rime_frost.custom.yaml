@@ -1,6 +1,9 @@
 patch:
-  # 初始状态设为英文 (reset: 1)
+  # 初始中英文状态：英文 (reset: 1)
   "switches/@0/reset": 1
+
+  # 默认开启 Emoji 候选项直接输出 (💀 关 / 😄 开)
+  "switches/@4/reset": 1
 
   # 挂载聚合了 MoeType (萌娘百科) 的白霜拼音扩展词库
   "translator/dictionary": rime_frost.extended
@@ -11,3 +14,8 @@ patch:
   "grammar/collocation_min_length": 2
   "grammar/non_collocation_penalty": -4
   "translator/grammar_penalty": -4
+
+  # 激活 v 模式：输入 v+快捷码 (如 vfh 符号, vjt 箭头, vsz 序号, vdw 单位, v1/v2/v3 快捷选符)
+  "recognizer/patterns/punct": "^v([0-9]|10|[A-Za-z]+)$"
+  "punctuator/symbols":
+    __include: symbols_v:/symbols
