@@ -1,4 +1,10 @@
 patch:
+  # 输入方案列表：首选白霜拼音 (rime_frost)
+  schema_list:
+    - schema: rime_frost
+    - schema: melt_eng
+    - schema: t9
+
   # 候选词数量
   menu/page_size: 5
 

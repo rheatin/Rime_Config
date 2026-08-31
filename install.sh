@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Rime 自动配置与安装脚本 (支持 macOS 与 Linux 全发行版)
+# Rime 自动配置与安装脚本 (白霜拼音 rime-frost + 万象语言模型 + MoeType + 个人定制)
 # Repository: https://github.com/rheatin/Rime_Config.git
 # ==============================================================================
 
@@ -14,11 +14,12 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 echo -e "${BLUE}====================================================${NC}"
-echo -e "${GREEN}       🚀 开始配置 Rime 雾凇拼音与个性化环境        ${NC}"
+echo -e "${GREEN} 🚀 开始配置 Rime 白霜拼音 + 万象语言模型 + MoeType  ${NC}"
 echo -e "${BLUE}====================================================${NC}"
 
 REPO_URL="https://github.com/rheatin/Rime_Config.git"
-RIME_ICE_URL="https://github.com/iDvel/rime-ice.git"
+RIME_FROST_URL="https://github.com/gaboolic/rime-frost.git"
+WANXIANG_MODEL_URL="https://github.com/amzxyz/RIME-LMDG/releases/download/LTS/wanxiang-lts-zh-hans.gram"
 MOETYPE_RELEASE_URL="https://github.com/suiginko/moetype/releases/latest/download/toneless_moe.dict.yaml"
 
 # 1. 确定脚本所在目录或通过网络拉取
@@ -95,22 +96,41 @@ elif [ "$PLATFORM" = "linux" ]; then
   fi
 fi
 
-# 4. 安装/同步 雾凇拼音 (rime-ice) 词库底座
-echo -e "${BLUE}❄️  正在同步 雾凇拼音 (rime-ice) 官方词库...${NC}"
+# 4. 安装/同步 白霜拼音 (rime-frost) 词库底座
+echo -e "${BLUE}❄️  正在同步 白霜拼音 (rime-frost) 官方底座...${NC}"
 mkdir -p "$RIME_DIR"
 if [ -d "$RIME_DIR/.git" ]; then
   cd "$RIME_DIR"
   REMOTE_URL="$(git remote get-url origin 2>/dev/null || true)"
-  if [[ "$REMOTE_URL" == *"rime-ice"* ]]; then
-    echo -e "${BLUE}🔄 正在更新现有 rime-ice...${NC}"
+  if [[ "$REMOTE_URL" == *"rime-frost"* ]]; then
+    echo -e "${BLUE}🔄 正在更新现有 rime-frost...${NC}"
     git pull --ff-only || true
+  else
+    echo -e "${BLUE}📥 切换并克隆 rime-frost 词库底座...${NC}"
+    cd "$HOME"
+    rm -rf "$RIME_DIR/.git"
+    git clone --depth=1 "$RIME_FROST_URL" "$RIME_DIR.tmp"
+    cp -rf "$RIME_DIR.tmp/"* "$RIME_DIR/"
+    cp -rf "$RIME_DIR.tmp/.git" "$RIME_DIR/" 2>/dev/null || true
+    rm -rf "$RIME_DIR.tmp"
   fi
 else
-  echo -e "${BLUE}📥 克隆 rime-ice 词库到 $RIME_DIR...${NC}"
-  git clone --depth=1 "$RIME_ICE_URL" "$RIME_DIR"
+  echo -e "${BLUE}📥 克隆 rime-frost 词库到 $RIME_DIR...${NC}"
+  git clone --depth=1 "$RIME_FROST_URL" "$RIME_DIR"
 fi
 
-# 5. 联网下载 MoeType 萌娘百科最新无声调词库并动态去重
+# 5. 下载万象 (Wanxiang) LTS 语言模型 (.gram)
+MODEL_TARGET="$RIME_DIR/wanxiang-lts-zh-hans.gram"
+if [ -f "$MODEL_TARGET" ] && [ $(stat -f%z "$MODEL_TARGET" 2>/dev/null || echo 0) -gt 350000000 ]; then
+  echo -e "${GREEN}✅ 检测到万象语言模型已就绪，跳过下载！${NC}"
+else
+  echo -e "${BLUE}🧠 正在下载万象 (Wanxiang) LTS 语法语言模型 (~400MB)...${NC}"
+  curl -fsSL --http1.1 "$WANXIANG_MODEL_URL" -o "$MODEL_TARGET.tmp"
+  mv "$MODEL_TARGET.tmp" "$MODEL_TARGET"
+  echo -e "${GREEN}✅ 万象语言模型加载成功！${NC}"
+fi
+
+# 6. 联网下载 MoeType 萌娘百科最新无声调词库并动态去重
 echo -e "${BLUE}🌸 正在联网获取 MoeType (萌娘百科) 最新官方词库...${NC}"
 RAW_MOE_TEMP="/tmp/toneless_moe_raw.dict.yaml"
 if curl -fsSL "$MOETYPE_RELEASE_URL" -o "$RAW_MOE_TEMP"; then
@@ -156,8 +176,8 @@ else
   echo -e "${YELLOW}⚠️ MoeType 下载失败，跳过扩展词库。${NC}"
 fi
 
-# 6. 同步个人精简配置与聚合词库定义 (*.custom.yaml & rime_ice.extended.dict.yaml)
-echo -e "${BLUE}⚙️  正在应用个人自定义配置与聚合词库...${NC}"
+# 7. 同步个人精简配置与聚合词库定义 (*.custom.yaml & rime_frost.extended.dict.yaml)
+echo -e "${BLUE}⚙️  正在应用个人自定义配置与 Rheatin 配色...${NC}"
 cp -f "$SCRIPT_DIR"/*.custom.yaml "$RIME_DIR/" 2>/dev/null || true
 cp -f "$SCRIPT_DIR"/*.dict.yaml "$RIME_DIR/" 2>/dev/null || true
 if [ -f "$SCRIPT_DIR/custom_phrase.txt" ]; then
@@ -165,7 +185,7 @@ if [ -f "$SCRIPT_DIR/custom_phrase.txt" ]; then
 fi
 echo -e "${GREEN}✅ 个人配置应用成功！${NC}"
 
-# 7. 安装思源宋体到系统字体库 (若已安装则跳过)
+# 8. 安装思源宋体到系统字体库 (若已安装则跳过)
 if [ -d "$SCRIPT_DIR/fonts" ]; then
   FONTS_EXIST=true
   for f in "$SCRIPT_DIR/fonts/"*.otf; do
@@ -190,7 +210,7 @@ if [ -d "$SCRIPT_DIR/fonts" ]; then
   fi
 fi
 
-# 8. 导入个人自造词与历史词频记忆
+# 9. 导入个人自造词与历史词频记忆
 if [ -d "$SCRIPT_DIR/sync" ]; then
   echo -e "${BLUE}🧠 正在导入历史词频与自造词记忆...${NC}"
   mkdir -p "$RIME_DIR/sync"
@@ -198,7 +218,7 @@ if [ -d "$SCRIPT_DIR/sync" ]; then
   echo -e "${GREEN}✅ 词频快照就绪！${NC}"
 fi
 
-# 9. 配置 macOS 状态栏「Sync user data」点击自动 Push 到 GitHub 的监听服务
+# 10. 配置 macOS 状态栏「Sync user data」点击自动 Push 到 GitHub 的监听服务
 if [ "$PLATFORM" = "macos" ]; then
   echo -e "${BLUE}⚡ 配置「Sync user data」自动推送 GitHub 守护进程...${NC}"
   LAUNCH_AGENT_DIR="$HOME/Library/LaunchAgents"
@@ -220,8 +240,8 @@ if [ "$PLATFORM" = "macos" ]; then
   echo -e "${GREEN}✅ 菜单栏同步监听已激活！${NC}"
 fi
 
-# 10. 重新部署与合并词频生效
-echo -e "${BLUE}🔄 触发 Rime 重新部署与词频合并...${NC}"
+# 11. 重新部署与合并词频生效
+echo -e "${BLUE}🔄 触发 Rime 重新部署与词频合并 (首次编译语言模型需约 15~20 秒)...${NC}"
 if [ "$PLATFORM" = "macos" ]; then
   if [ -f "$SQUIRREL_APP/Contents/MacOS/Squirrel" ]; then
     "$SQUIRREL_APP/Contents/MacOS/Squirrel" --reload || true
@@ -242,7 +262,7 @@ if [ -n "$TEMP_DIR" ] && [ -d "$TEMP_DIR" ]; then
 fi
 
 echo -e "${BLUE}====================================================${NC}"
-echo -e "${GREEN}🎉 恭喜！Rime 与 Rheatin Solarized + MoeType 扩展词库已全自动部署完毕！${NC}"
+echo -e "${GREEN}🎉 恭喜！Rime 白霜拼音 + 万象语言模型 + MoeType 已全自动部署完毕！${NC}"
 echo -e "${GREEN}🧠 个人自造词与词频记忆已完成合并恢复！${NC}"
 if [ "$PLATFORM" = "macos" ]; then
   echo -e "${YELLOW}提示：今后点击输入法菜单的「Sync user data」将自动备份推送到 GitHub！${NC}"

@@ -1,0 +1,41 @@
+# Rime Extended Dictionary
+# 聚合 白霜拼音 (rime-frost) 核心词库 与 MoeType (萌娘百科) 词库
+
+---
+name: rime_frost.extended
+version: "2026.08.31"
+sort: by_weight
+use_preset_vocabulary: false
+import_tables:
+  - cn_dicts/8105
+  - cn_dicts/41448
+  - cn_dicts/GB18030-2022
+  - cn_dicts/base
+  - cn_dicts/ext
+  - cn_dicts/others
+  - cn_dicts/corrections
+  - cn_dicts_cell/medication
+  - cn_dicts_cell/industry_product
+  - cn_dicts_cell/exthot
+  - cn_dicts_cell/chess
+  - cn_dicts_cell/chess2
+  - cn_dicts_cell/animal
+  - cn_dicts_cell/game
+  - cn_dicts_cell/idiom
+  - cn_dicts_cell/sport
+  - cn_dicts_cell/media
+  - cn_dicts_cell/shulihua
+  - cn_dicts_cell/food
+  - cn_dicts_cell/inputmethod
+  - cn_dicts_cell/history
+  - cn_dicts_cell/place
+  - cn_dicts_cell/geography
+  - cn_dicts_cell/name2
+  - cn_dicts_cell/literature
+  - cn_dicts_cell/music
+  - cn_dicts_cell/computer
+  - cn_dicts_cell/composite
+  - cn_dicts_cell/luna
+  - cn_dicts_cell/name
+  - moe
+...

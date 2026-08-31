@@ -1,0 +1,13 @@
+patch:
+  # 初始状态设为英文 (reset: 1)
+  "switches/@0/reset": 1
+
+  # 挂载聚合了 MoeType (萌娘百科) 的白霜拼音扩展词库
+  "translator/dictionary": rime_frost.extended
+
+  # 挂载万象 (Wanxiang) LTS 语言模型提升长句整句命中率
+  "grammar/language": wanxiang-lts-zh-hans
+  "grammar/collocation_max_length": 5
+  "grammar/collocation_min_length": 2
+  "grammar/non_collocation_penalty": -4
+  "translator/grammar_penalty": -4

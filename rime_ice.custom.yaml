@@ -1,6 +1,0 @@
-patch:
-  # 初始状态设为英文 (reset: 1)
-  "switches/@0/reset": 1
-
-  # 挂载包含 MoeType (萌娘百科) 的扩展词库
-  "translator/dictionary": rime_ice.extended
