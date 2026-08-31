@@ -15,7 +15,10 @@ patch:
   "grammar/non_collocation_penalty": -4
   "translator/grammar_penalty": -4
 
-  # 激活 v 模式：输入 v+快捷码 (如 vfh 符号, vjt 箭头, vsz 序号, vdw 单位, v1/v2/v3 快捷选符)
-  "recognizer/patterns/punct": "^v([0-9]|10|[A-Za-z]+)$"
+  # 符号系统：导入雾凇正统 symbols_v.yaml
   "punctuator/symbols":
     __include: symbols_v:/symbols
+
+  # 正则识别器：释放 v 给符号系统，计算器改为 C 引导 (如 C1+1)
+  "recognizer/patterns/calculator": "^[Cc].*$"
+  "recognizer/patterns/punct": "^v([0-9]|10|[A-Za-z]+)$"
