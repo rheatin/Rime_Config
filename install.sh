@@ -20,6 +20,7 @@ echo -e "${BLUE}====================================================${NC}"
 REPO_URL="https://github.com/rheatin/Rime_Config.git"
 RIME_FROST_URL="https://github.com/gaboolic/rime-frost.git"
 WANXIANG_MODEL_URL="https://github.com/amzxyz/RIME-LMDG/releases/download/LTS/wanxiang-lts-zh-hans.gram"
+WANXIANG_MODEL_SHA256="1635588006d79cc6955fbcf3d8de12822a36856eb5408735a8b4a2952b16cadf"
 MOETYPE_RELEASE_URL="https://github.com/suiginko/moetype/releases/latest/download/toneless_moe.dict.yaml"
 
 # 1. 确定脚本所在目录或通过网络拉取
@@ -119,15 +120,41 @@ else
   git clone --depth=1 "$RIME_FROST_URL" "$RIME_DIR"
 fi
 
-# 5. 下载万象 (Wanxiang) LTS 语言模型 (.gram)
+# 5. SHA256 校验与下载万象 (Wanxiang) LTS 语言模型 (.gram)
 MODEL_TARGET="$RIME_DIR/wanxiang-lts-zh-hans.gram"
-if [ -f "$MODEL_TARGET" ] && [ $(stat -f%z "$MODEL_TARGET" 2>/dev/null || echo 0) -gt 350000000 ]; then
-  echo -e "${GREEN}✅ 检测到万象语言模型已就绪，跳过下载！${NC}"
-else
+calc_sha256() {
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+  elif command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  else
+    echo ""
+  fi
+}
+
+MODEL_OK=false
+if [ -f "$MODEL_TARGET" ]; then
+  echo -e "${BLUE}🔍 正在校验本地万象语言模型 SHA256...${NC}"
+  CURRENT_SHA="$(calc_sha256 "$MODEL_TARGET")"
+  if [ "$CURRENT_SHA" = "$WANXIANG_MODEL_SHA256" ]; then
+    echo -e "${GREEN}✅ SHA256 校验通过，万象语言模型完整无误，跳过下载！${NC}"
+    MODEL_OK=true
+  else
+    echo -e "${YELLOW}⚠️ 本地模型 SHA256 不匹配或已损坏，准备重新下载...${NC}"
+  fi
+fi
+
+if [ "$MODEL_OK" = false ]; then
   echo -e "${BLUE}🧠 正在下载万象 (Wanxiang) LTS 语法语言模型 (~400MB)...${NC}"
   curl -fsSL --http1.1 "$WANXIANG_MODEL_URL" -o "$MODEL_TARGET.tmp"
+  DOWNLOAD_SHA="$(calc_sha256 "$MODEL_TARGET.tmp")"
+  if [ -n "$DOWNLOAD_SHA" ] && [ "$DOWNLOAD_SHA" != "$WANXIANG_MODEL_SHA256" ]; then
+    echo -e "${RED}❌ 下载的文件 SHA256 校验不匹配，可能下载中断！${NC}"
+    rm -f "$MODEL_TARGET.tmp"
+    exit 1
+  fi
   mv "$MODEL_TARGET.tmp" "$MODEL_TARGET"
-  echo -e "${GREEN}✅ 万象语言模型加载成功！${NC}"
+  echo -e "${GREEN}✅ 万象语言模型下载且 SHA256 校验通过！${NC}"
 fi
 
 # 6. 联网下载 MoeType 萌娘百科最新无声调词库并动态去重
@@ -180,6 +207,7 @@ fi
 echo -e "${BLUE}⚙️  正在应用个人自定义配置与 Rheatin 配色...${NC}"
 cp -f "$SCRIPT_DIR"/*.custom.yaml "$RIME_DIR/" 2>/dev/null || true
 cp -f "$SCRIPT_DIR"/*.dict.yaml "$RIME_DIR/" 2>/dev/null || true
+cp -f "$SCRIPT_DIR"/symbols_v.yaml "$RIME_DIR/" 2>/dev/null || true
 if [ -f "$SCRIPT_DIR/custom_phrase.txt" ]; then
   cp -f "$SCRIPT_DIR/custom_phrase.txt" "$RIME_DIR/"
 fi
