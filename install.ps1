@@ -1,12 +1,12 @@
 # ==============================================================================
-# Rime 自动配置与安装脚本 (Windows / Weasel 小狼毫)
+# Rime 自动配置与安装脚本 (Windows / 白霜拼音 + 万象语言模型 + MoeType)
 # Repository: https://github.com/rheatin/Rime_Config.git
 # ==============================================================================
 
 $ErrorActionPreference = "Continue"
 
 Write-Host "====================================================" -ForegroundColor Cyan
-Write-Host "       🚀 开始配置 Rime 雾凇拼音与个人环境 (Windows)   " -ForegroundColor Green
+Write-Host " 🚀 开始配置 Rime 白霜拼音 + 万象语言模型 (Windows) " -ForegroundColor Green
 Write-Host "====================================================" -ForegroundColor Cyan
 
 # 先彻底终止可能卡在维护中的旧后台进程
@@ -19,8 +19,9 @@ $RimeDir = Join-Path $env:APPDATA "Rime"
 $PermanentConfigDir = Join-Path $env:USERPROFILE "Rime_Config"
 $RepoUrl = "https://github.com/rheatin/Rime_Config.git"
 $RepoZipUrl = "https://github.com/rheatin/Rime_Config/archive/refs/heads/main.zip"
-$RimeIceUrl = "https://github.com/iDvel/rime-ice.git"
-$RimeIceZipUrl = "https://github.com/iDvel/rime-ice/archive/refs/heads/main.zip"
+$RimeFrostUrl = "https://github.com/gaboolic/rime-frost.git"
+$RimeFrostZipUrl = "https://github.com/gaboolic/rime-frost/archive/refs/heads/main.zip"
+$WanxiangModelUrl = "https://github.com/amzxyz/RIME-LMDG/releases/download/LTS/wanxiang-lts-zh-hans.gram"
 $MoeTypeReleaseUrl = "https://github.com/suiginko/moetype/releases/latest/download/toneless_moe.dict.yaml"
 
 $ScriptPath = if ($MyInvocation.MyCommand.Path) { $MyInvocation.MyCommand.Path } else { "" }
@@ -98,41 +99,50 @@ if (-not $WeaselInstalled) {
     Write-Host "✅ 检测到已安装小狼毫 (Weasel)" -ForegroundColor Green
 }
 
-# 3. 拉取/同步 雾凇拼音 (rime-ice) 词库底座
-Write-Host "❄️  正在同步 雾凇拼音 (rime-ice) 官方词库..." -ForegroundColor Cyan
+# 3. 拉取/同步 白霜拼音 (rime-frost) 词库底座
+Write-Host "❄️  正在同步 白霜拼音 (rime-frost) 官方词库..." -ForegroundColor Cyan
 if (-not (Test-Path $RimeDir)) {
     New-Item -ItemType Directory -Path $RimeDir -Force | Out-Null
 }
 
-if (Test-Path (Join-Path $RimeDir ".git")) {
-    Push-Location $RimeDir
-    try { git pull --ff-only } catch {}
-    Pop-Location
-} else {
-    $TempRimeIce = Join-Path $env:TEMP "rime_ice_temp"
-    if (Test-Path $TempRimeIce) { Remove-Item -Recurse -Force $TempRimeIce -ErrorAction SilentlyContinue }
-    
-    if (Get-Command git -ErrorAction SilentlyContinue) {
-        git clone --depth=1 $RimeIceUrl $TempRimeIce 2>$null
-        Copy-Item -Path (Join-Path $TempRimeIce "*") -Destination $RimeDir -Recurse -Force
-        if (Test-Path (Join-Path $TempRimeIce ".git")) {
-            Copy-Item -Path (Join-Path $TempRimeIce ".git") -Destination $RimeDir -Recurse -Force
-        }
-    } else {
-        Download-And-Extract-Zip -Url $RimeIceZipUrl -DestDir $RimeDir
-    }
-    if (Test-Path $TempRimeIce) { Remove-Item -Recurse -Force $TempRimeIce -ErrorAction SilentlyContinue }
-}
-Write-Host "✅ 雾凇拼音词库同步完成！" -ForegroundColor Green
+$TempFrost = Join-Path $env:TEMP "rime_frost_temp"
+if (Test-Path $TempFrost) { Remove-Item -Recurse -Force $TempFrost }
 
-# 4. 联网下载 MoeType 萌娘百科最新无声调词库并动态去重
+if (Get-Command git -ErrorAction SilentlyContinue) {
+    git clone --depth=1 $RimeFrostUrl $TempFrost 2>$null
+    Copy-Item -Path (Join-Path $TempFrost "*") -Destination $RimeDir -Recurse -Force
+    if (Test-Path (Join-Path $TempFrost ".git")) {
+        Copy-Item -Path (Join-Path $TempFrost ".git") -Destination $RimeDir -Recurse -Force
+    }
+} else {
+    Download-And-Extract-Zip -Url $RimeFrostZipUrl -DestDir $RimeDir
+}
+if (Test-Path $TempFrost) { Remove-Item -Recurse -Force $TempFrost -ErrorAction SilentlyContinue }
+Write-Host "✅ 白霜拼音词库同步完成！" -ForegroundColor Green
+
+# 4. 下载万象 (Wanxiang) LTS 语言模型 (.gram)
+$ModelTarget = Join-Path $RimeDir "wanxiang-lts-zh-hans.gram"
+if ((Test-Path $ModelTarget) -and ((Get-Item $ModelTarget).Length -gt 350000000)) {
+    Write-Host "✅ 检测到万象语言模型已就绪，跳过下载！" -ForegroundColor Green
+} else {
+    Write-Host "🧠 正在下载万象 (Wanxiang) LTS 语言模型 (~400MB)..." -ForegroundColor Cyan
+    try {
+        $ModelTemp = Join-Path $env:TEMP "wanxiang-lts-zh-hans.gram.tmp"
+        Invoke-WebRequest -Uri $WanxiangModelUrl -OutFile $ModelTemp
+        Move-Item -Path $ModelTemp -Destination $ModelTarget -Force
+        Write-Host "✅ 万象语言模型下载完成！" -ForegroundColor Green
+    } catch {
+        Write-Host "⚠️ 万象语言模型下载失败: $_" -ForegroundColor Yellow
+    }
+}
+
+# 5. 联网下载 MoeType 萌娘百科最新无声调词库并动态去重
 Write-Host "🌸 正在联网获取 MoeType (萌娘百科) 最新官方词库..." -ForegroundColor Cyan
 $RawMoeTemp = Join-Path $env:TEMP "toneless_moe_raw.dict.yaml"
 try {
     Invoke-WebRequest -Uri $MoeTypeReleaseUrl -OutFile $RawMoeTemp
     Write-Host "✂️  正在对 MoeType 进行动态去重 (只保留独有词条)..." -ForegroundColor Cyan
     
-    # 收集雾凇拼音词汇
     $RimeWords = [System.Collections.Generic.HashSet[string]]::new()
     $CnDictsDir = Join-Path $RimeDir "cn_dicts"
     if (Test-Path $CnDictsDir) {
@@ -150,7 +160,6 @@ try {
         }
     }
     
-    # 输出去重后的 moe.dict.yaml
     $TargetMoe = Join-Path $RimeDir "moe.dict.yaml"
     $Writer = [System.IO.StreamWriter]::new($TargetMoe, $false, [System.Text.Encoding]::UTF8)
     $inBody = $false
@@ -179,7 +188,7 @@ try {
     Write-Host "⚠️ MoeType 下载/处理跳过: $_" -ForegroundColor Yellow
 }
 
-# 5. 复制个人自定义配置与聚合词库定义 (*.custom.yaml & *.dict.yaml)
+# 6. 复制个人自定义配置与聚合词库定义 (*.custom.yaml & *.dict.yaml)
 Write-Host "⚙️  正在应用个人配置与 Rheatin Solarized 皮肤..." -ForegroundColor Cyan
 Copy-Item -Path (Join-Path $ScriptDir "*.custom.yaml") -Destination $RimeDir -Force
 Copy-Item -Path (Join-Path $ScriptDir "*.dict.yaml") -Destination $RimeDir -Force
@@ -188,7 +197,7 @@ if (Test-Path (Join-Path $ScriptDir "custom_phrase.txt")) {
 }
 Write-Host "✅ 个人配置应用成功！" -ForegroundColor Green
 
-# 6. 导入跨平台历史词频快照
+# 7. 导入跨平台历史词频快照
 if (Test-Path (Join-Path $ScriptDir "sync")) {
     Write-Host "🧠 正在导入跨平台自造词与历史词频..." -ForegroundColor Cyan
     $TargetSync = Join-Path $RimeDir "sync"
@@ -197,7 +206,7 @@ if (Test-Path (Join-Path $ScriptDir "sync")) {
     Write-Host "✅ 跨平台词频快照就绪！" -ForegroundColor Green
 }
 
-# 7. 安装思源宋体 (若已安装则跳过)
+# 8. 安装思源宋体 (若已安装则跳过)
 $FontsSource = Join-Path $ScriptDir "fonts"
 if (Test-Path $FontsSource) {
     $UserFontsDir = Join-Path $env:LOCALAPPDATA "Microsoft\Windows\Fonts"
@@ -273,7 +282,7 @@ if (Test-Path $FontsSource) {
     }
 }
 
-# 8. 配置 Windows 用户资料同步自动 Push 守护服务
+# 9. 配置 Windows 用户资料同步自动 Push 守护服务
 Write-Host "⚡ 配置 Windows 用户资料同步自动 Push 守护服务..." -ForegroundColor Cyan
 $StartupFolder = [Environment]::GetFolderPath("Startup")
 $VbsPath = Join-Path $StartupFolder "RimeSyncWatcher.vbs"
@@ -288,8 +297,8 @@ Set-Content -Path $VbsPath -Value $VbsContent -Encoding ASCII
 Start-Process "wscript.exe" -ArgumentList "`"$VbsPath`"" -WindowStyle Hidden
 Write-Host "✅ 自动同步监听守护进程已激活！" -ForegroundColor Green
 
-# 9. 重新部署小狼毫
-Write-Host "🔄 正在部署小狼毫..." -ForegroundColor Cyan
+# 10. 重新部署小狼毫
+Write-Host "🔄 正在部署小狼毫 (首次编译语言模型需约 15~20 秒)..." -ForegroundColor Cyan
 $Deployer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime", "${env:ProgramFiles}\Rime" -Filter "WeaselDeployer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 $WeaselServer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime", "${env:ProgramFiles}\Rime" -Filter "WeaselServer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 
@@ -309,6 +318,6 @@ if ($TempDir -and (Test-Path $TempDir)) {
 }
 
 Write-Host "====================================================" -ForegroundColor Cyan
-Write-Host "🎉 全部安装、配置、MoeType 动态去重与词频恢复已完成！" -ForegroundColor Green
+Write-Host "🎉 全部安装、配置、白霜拼音 + 万象语言模型部署完成！" -ForegroundColor Green
 Write-Host "💡 提示：在 Windows 托盘点击「用户资料同步」将自动同步并推送到 GitHub！" -ForegroundColor Yellow
 Write-Host "====================================================" -ForegroundColor Cyan
