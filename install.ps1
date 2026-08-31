@@ -22,6 +22,7 @@ $RepoZipUrl = "https://github.com/rheatin/Rime_Config/archive/refs/heads/main.zi
 $RimeFrostUrl = "https://github.com/gaboolic/rime-frost.git"
 $RimeFrostZipUrl = "https://github.com/gaboolic/rime-frost/archive/refs/heads/main.zip"
 $WanxiangModelUrl = "https://github.com/amzxyz/RIME-LMDG/releases/download/LTS/wanxiang-lts-zh-hans.gram"
+$WanxiangModelSha256 = "1635588006D79CC6955FBCF3D8DE12822A36856EB5408735A8B4A2952B16CADF"
 $MoeTypeReleaseUrl = "https://github.com/suiginko/moetype/releases/latest/download/toneless_moe.dict.yaml"
 
 $ScriptPath = if ($MyInvocation.MyCommand.Path) { $MyInvocation.MyCommand.Path } else { "" }
@@ -63,7 +64,7 @@ if ($NeedDownload) {
     $ScriptDir = $TempDir
 }
 
-# 永久保留一套配置仓库于本地用户目录 (供 sync 脚本与守护服务使用)
+# 永久保留一套配置仓库于本地用户目录
 if (-not (Test-Path $PermanentConfigDir)) {
     if (Get-Command git -ErrorAction SilentlyContinue) {
         git clone $RepoUrl $PermanentConfigDir 2>$null
@@ -120,17 +121,34 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
 if (Test-Path $TempFrost) { Remove-Item -Recurse -Force $TempFrost -ErrorAction SilentlyContinue }
 Write-Host "✅ 白霜拼音词库同步完成！" -ForegroundColor Green
 
-# 4. 下载万象 (Wanxiang) LTS 语言模型 (.gram)
+# 4. SHA256 校验与下载万象 (Wanxiang) LTS 语言模型 (.gram)
 $ModelTarget = Join-Path $RimeDir "wanxiang-lts-zh-hans.gram"
-if ((Test-Path $ModelTarget) -and ((Get-Item $ModelTarget).Length -gt 350000000)) {
-    Write-Host "✅ 检测到万象语言模型已就绪，跳过下载！" -ForegroundColor Green
-} else {
+$ModelOk = $false
+
+if (Test-Path $ModelTarget) {
+    Write-Host "🔍 正在校验万象语言模型 SHA256..." -ForegroundColor Cyan
+    $CurrentHash = (Get-FileHash -Path $ModelTarget -Algorithm SHA256).Hash
+    if ($CurrentHash -eq $WanxiangModelSha256) {
+        Write-Host "✅ SHA256 校验通过，万象语言模型完整无误，跳过下载！" -ForegroundColor Green
+        $ModelOk = $true
+    } else {
+        Write-Host "⚠️ 本地模型 SHA256 不匹配或已损坏，准备重新下载..." -ForegroundColor Yellow
+    }
+}
+
+if (-not $ModelOk) {
     Write-Host "🧠 正在下载万象 (Wanxiang) LTS 语言模型 (~400MB)..." -ForegroundColor Cyan
     try {
         $ModelTemp = Join-Path $env:TEMP "wanxiang-lts-zh-hans.gram.tmp"
         Invoke-WebRequest -Uri $WanxiangModelUrl -OutFile $ModelTemp
-        Move-Item -Path $ModelTemp -Destination $ModelTarget -Force
-        Write-Host "✅ 万象语言模型下载完成！" -ForegroundColor Green
+        $DownloadHash = (Get-FileHash -Path $ModelTemp -Algorithm SHA256).Hash
+        if ($DownloadHash -ne $WanxiangModelSha256) {
+            Write-Host "❌ 下载的文件 SHA256 校验失败，文件可能不完整！" -ForegroundColor Red
+            Remove-Item -Path $ModelTemp -Force -ErrorAction SilentlyContinue
+        } else {
+            Move-Item -Path $ModelTemp -Destination $ModelTarget -Force
+            Write-Host "✅ 万象语言模型下载且 SHA256 校验通过！" -ForegroundColor Green
+        }
     } catch {
         Write-Host "⚠️ 万象语言模型下载失败: $_" -ForegroundColor Yellow
     }
@@ -192,6 +210,7 @@ try {
 Write-Host "⚙️  正在应用个人配置与 Rheatin Solarized 皮肤..." -ForegroundColor Cyan
 Copy-Item -Path (Join-Path $ScriptDir "*.custom.yaml") -Destination $RimeDir -Force
 Copy-Item -Path (Join-Path $ScriptDir "*.dict.yaml") -Destination $RimeDir -Force
+Copy-Item -Path (Join-Path $ScriptDir "symbols_v.yaml") -Destination $RimeDir -Force
 if (Test-Path (Join-Path $ScriptDir "custom_phrase.txt")) {
     Copy-Item -Path (Join-Path $ScriptDir "custom_phrase.txt") -Destination $RimeDir -Force
 }
