@@ -1,6 +1,6 @@
 patch:
-  # 初始中英文状态：英文 (reset: 1)
-  "switches/@0/reset": 1
+  # 初始状态设为中文 (reset: 0)
+  "switches/@0/reset": 0
 
   # 默认开启 Emoji 候选项直接输出 (💀 关 / 😄 开)
   "switches/@4/reset": 1

@@ -1,8 +1,8 @@
 patch:
-  ascii_mode: true
-  ascii_punct: true
+  ascii_mode: false
+  ascii_punct: false
 
-  # 特定应用下的英文模式设定
+  # 特定开发/终端应用下的英文模式设定 (按需自动切换)
   app_options:
     com.apple.Spotlight:
       ascii_mode: true
