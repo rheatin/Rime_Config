@@ -19,11 +19,13 @@ patch:
   "punctuator/symbols":
     __include: symbols_v:/symbols
 
-  # 正则识别器：释放 v 给符号系统，计算器改为 C 引导 (如 C1+1)
-  "recognizer/patterns/calculator": "^[Cc].*$"
+  # 正则识别器：
+  # 1. 严格限制计算器仅由大写 C+数字 引导 (如 C1+1)，绝不拦截任何小写 c 开头的正常拼音！
+  # 2. 释放 v 给 symbols 符号系统 (如 vfh 符号, vjt 箭头, vsz 数字)
+  "recognizer/patterns/calculator": "^C[0-9].*$"
   "recognizer/patterns/punct": "^v([0-9]|10|[A-Za-z]+)$"
 
-  # 快捷键：分号 ; 选第 2 项，减号 - 向上翻页，等号 = 向下翻页
+  # 快捷键：分号 ; 快捷选第 2 项，减号 - 向上翻页，等号 = 向下翻页
   "key_binder/bindings":
     - { when: has_menu, accept: semicolon, send: 2 }
     - { when: has_menu, accept: minus, send: Page_Up }
