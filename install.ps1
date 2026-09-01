@@ -21,8 +21,9 @@ $RepoUrl = "https://github.com/rheatin/Rime_Config.git"
 $RepoZipUrl = "https://github.com/rheatin/Rime_Config/archive/refs/heads/main.zip"
 $RimeFrostUrl = "https://github.com/gaboolic/rime-frost.git"
 $RimeFrostZipUrl = "https://github.com/gaboolic/rime-frost/archive/refs/heads/main.zip"
+$WanxiangApiUrl = "https://api.github.com/repos/amzxyz/RIME-LMDG/releases/tags/LTS"
 $WanxiangModelUrl = "https://github.com/amzxyz/RIME-LMDG/releases/download/LTS/wanxiang-lts-zh-hans.gram"
-$WanxiangModelSha256 = "1635588006D79CC6955FBCF3D8DE12822A36856EB5408735A8B4A2952B16CADF"
+$FallbackSha256 = "1635588006D79CC6955FBCF3D8DE12822A36856EB5408735A8B4A2952B16CADF"
 $MoeTypeReleaseUrl = "https://github.com/suiginko/moetype/releases/latest/download/toneless_moe.dict.yaml"
 
 $ScriptPath = if ($MyInvocation.MyCommand.Path) { $MyInvocation.MyCommand.Path } else { "" }
@@ -121,18 +122,35 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
 if (Test-Path $TempFrost) { Remove-Item -Recurse -Force $TempFrost -ErrorAction SilentlyContinue }
 Write-Host "✅ 白霜拼音词库同步完成！" -ForegroundColor Green
 
-# 4. SHA256 校验与下载万象 (Wanxiang) LTS 语言模型 (.gram)
+# 4. 动态获取 GitHub 远程 SHA256 并校验下载万象语言模型
 $ModelTarget = Join-Path $RimeDir "wanxiang-lts-zh-hans.gram"
-$ModelOk = $false
+Write-Host "🌐 正在查询 GitHub 远程 Release 权威 SHA256 指纹..." -ForegroundColor Cyan
 
+$RemoteSha256 = $null
+try {
+    $ReleaseJson = Invoke-RestMethod -Uri $WanxiangApiUrl -Headers @{"User-Agent"="Mozilla/5.0"} -TimeoutSec 8
+    $Asset = $ReleaseJson.assets | Where-Object { $_.name -eq "wanxiang-lts-zh-hans.gram" }
+    if ($Asset -and $Asset.digest -and $Asset.digest.StartsWith("sha256:")) {
+        $RemoteSha256 = $Asset.digest.Substring(7).ToUpper()
+    }
+} catch {}
+
+if (-not $RemoteSha256) {
+    $RemoteSha256 = $FallbackSha256
+    Write-Host "ℹ️ 使用内置基准 SHA256 指纹: $($RemoteSha256.Substring(0, 16))..." -ForegroundColor Yellow
+} else {
+    Write-Host "✅ 成功获取 GitHub 远程最新 SHA256: $($RemoteSha256.Substring(0, 16))..." -ForegroundColor Green
+}
+
+$ModelOk = $false
 if (Test-Path $ModelTarget) {
-    Write-Host "🔍 正在校验万象语言模型 SHA256..." -ForegroundColor Cyan
+    Write-Host "🔍 正在校验本地万象语言模型 SHA256..." -ForegroundColor Cyan
     $CurrentHash = (Get-FileHash -Path $ModelTarget -Algorithm SHA256).Hash
-    if ($CurrentHash -eq $WanxiangModelSha256) {
-        Write-Host "✅ SHA256 校验通过，万象语言模型完整无误，跳过下载！" -ForegroundColor Green
+    if ($CurrentHash -eq $RemoteSha256) {
+        Write-Host "✅ 本地模型与 GitHub 远程 Release 权威指纹完全一致，跳过下载！" -ForegroundColor Green
         $ModelOk = $true
     } else {
-        Write-Host "⚠️ 本地模型 SHA256 不匹配或已损坏，准备重新下载..." -ForegroundColor Yellow
+        Write-Host "⚠️ 本地模型 SHA256 不匹配或有更新，准备拉取最新版本..." -ForegroundColor Yellow
     }
 }
 
@@ -142,12 +160,12 @@ if (-not $ModelOk) {
         $ModelTemp = Join-Path $env:TEMP "wanxiang-lts-zh-hans.gram.tmp"
         Invoke-WebRequest -Uri $WanxiangModelUrl -OutFile $ModelTemp
         $DownloadHash = (Get-FileHash -Path $ModelTemp -Algorithm SHA256).Hash
-        if ($DownloadHash -ne $WanxiangModelSha256) {
-            Write-Host "❌ 下载的文件 SHA256 校验失败，文件可能不完整！" -ForegroundColor Red
+        if ($DownloadHash -ne $RemoteSha256) {
+            Write-Host "❌ 下载的文件与 GitHub 官方 SHA256 校验不匹配，可能下载中断！" -ForegroundColor Red
             Remove-Item -Path $ModelTemp -Force -ErrorAction SilentlyContinue
         } else {
             Move-Item -Path $ModelTemp -Destination $ModelTarget -Force
-            Write-Host "✅ 万象语言模型下载且 SHA256 校验通过！" -ForegroundColor Green
+            Write-Host "✅ 万象语言模型下载且 GitHub 官方 SHA256 校验通过！" -ForegroundColor Green
         }
     } catch {
         Write-Host "⚠️ 万象语言模型下载失败: $_" -ForegroundColor Yellow
