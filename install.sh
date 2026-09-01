@@ -19,10 +19,14 @@ echo -e "${BLUE}====================================================${NC}"
 
 REPO_URL="https://github.com/rheatin/Rime_Config.git"
 RIME_FROST_URL="https://github.com/gaboolic/rime-frost.git"
+
 WANXIANG_API_URL="https://api.github.com/repos/amzxyz/RIME-LMDG/releases/tags/LTS"
 WANXIANG_MODEL_URL="https://github.com/amzxyz/RIME-LMDG/releases/download/LTS/wanxiang-lts-zh-hans.gram"
-FALLBACK_SHA256="1635588006d79cc6955fbcf3d8de12822a36856eb5408735a8b4a2952b16cadf"
+FALLBACK_WANXIANG_SHA256="1635588006d79cc6955fbcf3d8de12822a36856eb5408735a8b4a2952b16cadf"
+
+MOETYPE_API_URL="https://api.github.com/repos/suiginko/moetype/releases/latest"
 MOETYPE_RELEASE_URL="https://github.com/suiginko/moetype/releases/latest/download/toneless_moe.dict.yaml"
+FALLBACK_MOE_SHA256="bbf8fb188a88d84310457f65f3c2ebcec692c5371087a1f6589eab8b923c08af"
 
 # 1. 确定脚本所在目录或通过网络拉取
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo "")"
@@ -133,8 +137,8 @@ calc_sha256() {
   fi
 }
 
-echo -e "${BLUE}🌐 正在查询 GitHub 远程 Release 权威 SHA256 指纹...${NC}"
-REMOTE_SHA256=$(python3 -c "
+echo -e "${BLUE}🌐 正在查询万象语言模型 GitHub 远程 Digest SHA256...${NC}"
+REMOTE_WANXIANG_SHA256=$(python3 -c "
 import urllib.request, json
 url = '$WANXIANG_API_URL'
 req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
@@ -151,22 +155,21 @@ except Exception:
     pass
 " 2>/dev/null || echo "")
 
-if [ -z "$REMOTE_SHA256" ]; then
-  REMOTE_SHA256="$FALLBACK_SHA256"
-  echo -e "${YELLOW}ℹ️ 使用内置基准 SHA256 指纹: ${REMOTE_SHA256:0:16}...${NC}"
+if [ -z "$REMOTE_WANXIANG_SHA256" ]; then
+  REMOTE_WANXIANG_SHA256="$FALLBACK_WANXIANG_SHA256"
+  echo -e "${YELLOW}ℹ️ 使用内置基准 SHA256: ${REMOTE_WANXIANG_SHA256:0:16}...${NC}"
 else
-  echo -e "${GREEN}✅ 成功获取 GitHub 远程最新 SHA256: ${REMOTE_SHA256:0:16}...${NC}"
+  echo -e "${GREEN}✅ 获取到远程万象模型 SHA256: ${REMOTE_WANXIANG_SHA256:0:16}...${NC}"
 fi
 
 MODEL_OK=false
 if [ -f "$MODEL_TARGET" ]; then
-  echo -e "${BLUE}🔍 正在校验本地万象模型 SHA256...${NC}"
   CURRENT_SHA="$(calc_sha256 "$MODEL_TARGET")"
-  if [ "$CURRENT_SHA" = "$REMOTE_SHA256" ]; then
-    echo -e "${GREEN}✅ 本地模型与 GitHub 远程 Release 权威指纹完全一致，跳过下载！${NC}"
+  if [ "$CURRENT_SHA" = "$REMOTE_WANXIANG_SHA256" ]; then
+    echo -e "${GREEN}✅ 本地万象模型与 GitHub 远程 Digest 完全一致，跳过下载！${NC}"
     MODEL_OK=true
   else
-    echo -e "${YELLOW}⚠️ 本地模型 SHA256 不一致或有更新，准备拉取最新版本...${NC}"
+    echo -e "${YELLOW}⚠️ 本地万象模型 SHA256 不一致或有更新，准备拉取最新版本...${NC}"
   fi
 fi
 
@@ -174,7 +177,7 @@ if [ "$MODEL_OK" = false ]; then
   echo -e "${BLUE}🧠 正在下载万象 (Wanxiang) LTS 语法语言模型 (~400MB)...${NC}"
   curl -fsSL --http1.1 "$WANXIANG_MODEL_URL" -o "$MODEL_TARGET.tmp"
   DOWNLOAD_SHA="$(calc_sha256 "$MODEL_TARGET.tmp")"
-  if [ -n "$DOWNLOAD_SHA" ] && [ "$DOWNLOAD_SHA" != "$REMOTE_SHA256" ]; then
+  if [ -n "$DOWNLOAD_SHA" ] && [ "$DOWNLOAD_SHA" != "$REMOTE_WANXIANG_SHA256" ]; then
     echo -e "${RED}❌ 下载的文件与 GitHub 官方 SHA256 校验不匹配，可能下载中断！${NC}"
     rm -f "$MODEL_TARGET.tmp"
     exit 1
@@ -183,12 +186,46 @@ if [ "$MODEL_OK" = false ]; then
   echo -e "${GREEN}✅ 万象语言模型下载且 GitHub 官方 SHA256 校验通过！${NC}"
 fi
 
-# 6. 联网下载 MoeType 萌娘百科最新无声调词库并动态去重
-echo -e "${BLUE}🌸 正在联网获取 MoeType (萌娘百科) 最新官方词库...${NC}"
-RAW_MOE_TEMP="/tmp/toneless_moe_raw.dict.yaml"
-if curl -fsSL "$MOETYPE_RELEASE_URL" -o "$RAW_MOE_TEMP"; then
-  echo -e "${BLUE}✂️  正在对 MoeType 词库进行动态去重 (只保留独有词条)...${NC}"
-  python3 -c "
+# 6. 动态获取 MoeType 远程 Digest 并智能比对跳过/下载去重
+TARGET_MOE="$RIME_DIR/moe.dict.yaml"
+MOE_DIGEST_FILE="$RIME_DIR/.moe_digest"
+echo -e "${BLUE}🌸 正在查询 MoeType 词库 GitHub 远程 Digest SHA256...${NC}"
+
+REMOTE_MOE_SHA256=$(python3 -c "
+import urllib.request, json
+url = '$MOETYPE_API_URL'
+req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+try:
+    with urllib.request.urlopen(req, timeout=8) as resp:
+        data = json.loads(resp.read().decode())
+        for a in data.get('assets', []):
+            if a.get('name') == 'toneless_moe.dict.yaml':
+                d = a.get('digest', '')
+                if d.startswith('sha256:'):
+                    print(d.split('sha256:')[1].strip())
+                    break
+except Exception:
+    pass
+" 2>/dev/null || echo "")
+
+if [ -z "$REMOTE_MOE_SHA256" ]; then
+  REMOTE_MOE_SHA256="$FALLBACK_MOE_SHA256"
+fi
+
+MOE_NEED_UPDATE=true
+if [ -f "$TARGET_MOE" ] && [ -f "$MOE_DIGEST_FILE" ]; then
+  SAVED_DIGEST="$(cat "$MOE_DIGEST_FILE" 2>/dev/null | tr -d '[:space:]')"
+  if [ "$SAVED_DIGEST" = "$REMOTE_MOE_SHA256" ]; then
+    echo -e "${GREEN}✅ 本地 MoeType 词库与 GitHub 远程最新 Digest 一致，跳过下载与去重！${NC}"
+    MOE_NEED_UPDATE=false
+  fi
+fi
+
+if [ "$MOE_NEED_UPDATE" = true ]; then
+  echo -e "${BLUE}🌸 正在获取 MoeType 最新官方词库并进行动态去重...${NC}"
+  RAW_MOE_TEMP="/tmp/toneless_moe_raw.dict.yaml"
+  if curl -fsSL "$MOETYPE_RELEASE_URL" -o "$RAW_MOE_TEMP"; then
+    python3 -c "
 import os
 rime_dir = '$RIME_DIR'
 cn_dicts = os.path.join(rime_dir, 'cn_dicts')
@@ -205,7 +242,7 @@ if os.path.exists(cn_dicts):
                         p = l.split('\t')
                         if p and p[0].strip(): rime_words.add(p[0].strip())
 
-out_file = os.path.join(rime_dir, 'moe.dict.yaml')
+out_file = '$TARGET_MOE'
 kept = 0
 removed = 0
 with open('$RAW_MOE_TEMP', 'r', encoding='utf-8') as fin, open(out_file, 'w', encoding='utf-8') as fout:
@@ -223,10 +260,12 @@ with open('$RAW_MOE_TEMP', 'r', encoding='utf-8') as fin, open(out_file, 'w', en
             fout.write(line)
 print(f'   去重完成：保留独有词条 {kept:,}，剔除重复词条 {removed:,}')
 "
-  rm -f "$RAW_MOE_TEMP"
-  echo -e "${GREEN}✅ MoeType 动态去重完成！${NC}"
-else
-  echo -e "${YELLOW}⚠️ MoeType 下载失败，跳过扩展词库。${NC}"
+    rm -f "$RAW_MOE_TEMP"
+    echo "$REMOTE_MOE_SHA256" > "$MOE_DIGEST_FILE"
+    echo -e "${GREEN}✅ MoeType 动态去重完成！${NC}"
+  else
+    echo -e "${YELLOW}⚠️ MoeType 下载失败，跳过扩展词库。${NC}"
+  fi
 fi
 
 # 7. 同步个人精简配置与聚合词库定义
@@ -239,7 +278,7 @@ if [ -f "$SCRIPT_DIR/custom_phrase.txt" ]; then
 fi
 echo -e "${GREEN}✅ 个人配置应用成功！${NC}"
 
-# 8. 安装思源宋体与 Symbols Nerd Font 字体到系统字体库 (若已安装则跳过)
+# 8. 安装思源宋体与 Symbols Nerd Font 字体 (若已安装则跳过)
 if [ -d "$SCRIPT_DIR/fonts" ]; then
   FONTS_EXIST=true
   for f in "$SCRIPT_DIR/fonts/"*.*; do

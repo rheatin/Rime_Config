@@ -9,7 +9,7 @@ Write-Host "====================================================" -ForegroundCol
 Write-Host " 🚀 开始配置 Rime 白霜拼音 + 万象语言模型 (Windows) " -ForegroundColor Green
 Write-Host "====================================================" -ForegroundColor Cyan
 
-# 先彻底终止可能卡在维护中的旧后台进程
+# 彻底终止可能卡在维护中的旧后台进程
 Write-Host "🧹 正在清理可能卡住的旧输入法进程..." -ForegroundColor Cyan
 Stop-Process -Name "WeaselDeployer" -Force -ErrorAction SilentlyContinue
 Stop-Process -Name "WeaselServer" -Force -ErrorAction SilentlyContinue
@@ -21,19 +21,14 @@ $RepoUrl = "https://github.com/rheatin/Rime_Config.git"
 $RepoZipUrl = "https://github.com/rheatin/Rime_Config/archive/refs/heads/main.zip"
 $RimeFrostUrl = "https://github.com/gaboolic/rime-frost.git"
 $RimeFrostZipUrl = "https://github.com/gaboolic/rime-frost/archive/refs/heads/main.zip"
+
 $WanxiangApiUrl = "https://api.github.com/repos/amzxyz/RIME-LMDG/releases/tags/LTS"
 $WanxiangModelUrl = "https://github.com/amzxyz/RIME-LMDG/releases/download/LTS/wanxiang-lts-zh-hans.gram"
-$FallbackSha256 = "1635588006D79CC6955FBCF3D8DE12822A36856EB5408735A8B4A2952B16CADF"
+$FallbackWanxiangSha256 = "1635588006D79CC6955FBCF3D8DE12822A36856EB5408735A8B4A2952B16CADF"
+
+$MoeTypeApiUrl = "https://api.github.com/repos/suiginko/moetype/releases/latest"
 $MoeTypeReleaseUrl = "https://github.com/suiginko/moetype/releases/latest/download/toneless_moe.dict.yaml"
-
-$ScriptPath = if ($MyInvocation.MyCommand.Path) { $MyInvocation.MyCommand.Path } else { "" }
-$ScriptDir = if ($ScriptPath) { Split-Path -Parent $ScriptPath } else { "" }
-$TempDir = $null
-
-$NeedDownload = $true
-if ($ScriptDir -and (Test-Path (Join-Path $ScriptDir "fonts"))) {
-    $NeedDownload = $false
-}
+$FallbackMoeSha256 = "BBF8FB188A88D84310457F65F3C2EBCEC692C5371087A1F6589EAB8B923C08AF"
 
 function Download-And-Extract-Zip {
     param([string]$Url, [string]$DestDir)
@@ -51,26 +46,13 @@ function Download-And-Extract-Zip {
     Remove-Item -Path $ExtractTemp -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-# 1. 准备个人配置文件与字体资源
-if ($NeedDownload) {
-    Write-Host "📥 正在获取 Rime_Config 仓库资源..." -ForegroundColor Cyan
-    $TempDir = Join-Path $env:TEMP "Rime_Config_Temp"
-    if (Test-Path $TempDir) { Remove-Item -Recurse -Force $TempDir }
-    
-    if (Get-Command git -ErrorAction SilentlyContinue) {
-        git clone --depth=1 $RepoUrl $TempDir 2>$null
-    } else {
-        Download-And-Extract-Zip -Url $RepoZipUrl -DestDir $TempDir
-    }
-    $ScriptDir = $TempDir
-}
-
-# 永久保留一套配置仓库于本地用户目录
+# 1. 准备/更新永久个人配置仓库
+Write-Host "📥 正在同步 Rime_Config 仓库资源..." -ForegroundColor Cyan
 if (-not (Test-Path $PermanentConfigDir)) {
     if (Get-Command git -ErrorAction SilentlyContinue) {
         git clone $RepoUrl $PermanentConfigDir 2>$null
     } else {
-        Copy-Item -Path $ScriptDir -Destination $PermanentConfigDir -Recurse -Force
+        Download-And-Extract-Zip -Url $RepoZipUrl -DestDir $PermanentConfigDir
     }
 } else {
     if (Test-Path (Join-Path $PermanentConfigDir ".git")) {
@@ -79,6 +61,9 @@ if (-not (Test-Path $PermanentConfigDir)) {
         Pop-Location
     }
 }
+
+# 统一资源源目录
+$SourceDir = $PermanentConfigDir
 
 # 2. 检测与安装 Weasel (小狼毫)
 $WeaselDir = "${env:ProgramFiles(x86)}\Rime\weasel-*"
@@ -122,35 +107,34 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
 if (Test-Path $TempFrost) { Remove-Item -Recurse -Force $TempFrost -ErrorAction SilentlyContinue }
 Write-Host "✅ 白霜拼音词库同步完成！" -ForegroundColor Green
 
-# 4. 动态获取 GitHub 远程 SHA256 并校验下载万象语言模型
+# 4. 动态获取 GitHub 远程 Digest SHA256 并校验下载万象语言模型
 $ModelTarget = Join-Path $RimeDir "wanxiang-lts-zh-hans.gram"
-Write-Host "🌐 正在查询 GitHub 远程 Release 权威 SHA256 指纹..." -ForegroundColor Cyan
+Write-Host "🌐 正在查询万象模型 GitHub 远程 Digest SHA256..." -ForegroundColor Cyan
 
-$RemoteSha256 = $null
+$RemoteWanxiangSha256 = $null
 try {
     $ReleaseJson = Invoke-RestMethod -Uri $WanxiangApiUrl -Headers @{"User-Agent"="Mozilla/5.0"} -TimeoutSec 8
     $Asset = $ReleaseJson.assets | Where-Object { $_.name -eq "wanxiang-lts-zh-hans.gram" }
     if ($Asset -and $Asset.digest -and $Asset.digest.StartsWith("sha256:")) {
-        $RemoteSha256 = $Asset.digest.Substring(7).ToUpper()
+        $RemoteWanxiangSha256 = $Asset.digest.Substring(7).ToUpper()
     }
 } catch {}
 
-if (-not $RemoteSha256) {
-    $RemoteSha256 = $FallbackSha256
-    Write-Host "ℹ️ 使用内置基准 SHA256 指纹: $($RemoteSha256.Substring(0, 16))..." -ForegroundColor Yellow
+if (-not $RemoteWanxiangSha256) {
+    $RemoteWanxiangSha256 = $FallbackWanxiangSha256
+    Write-Host "ℹ️ 使用内置基准 SHA256: $($RemoteWanxiangSha256.Substring(0, 16))..." -ForegroundColor Yellow
 } else {
-    Write-Host "✅ 成功获取 GitHub 远程最新 SHA256: $($RemoteSha256.Substring(0, 16))..." -ForegroundColor Green
+    Write-Host "✅ 获取到远程万象模型 SHA256: $($RemoteWanxiangSha256.Substring(0, 16))..." -ForegroundColor Green
 }
 
 $ModelOk = $false
 if (Test-Path $ModelTarget) {
-    Write-Host "🔍 正在校验本地万象语言模型 SHA256..." -ForegroundColor Cyan
     $CurrentHash = (Get-FileHash -Path $ModelTarget -Algorithm SHA256).Hash
-    if ($CurrentHash -eq $RemoteSha256) {
-        Write-Host "✅ 本地模型与 GitHub 远程 Release 权威指纹完全一致，跳过下载！" -ForegroundColor Green
+    if ($CurrentHash -eq $RemoteWanxiangSha256) {
+        Write-Host "✅ 本地万象模型与 GitHub 远程 Digest 一致，跳过下载！" -ForegroundColor Green
         $ModelOk = $true
     } else {
-        Write-Host "⚠️ 本地模型 SHA256 不匹配或有更新，准备拉取最新版本..." -ForegroundColor Yellow
+        Write-Host "⚠️ 本地万象模型不一致或有更新，准备拉取最新版本..." -ForegroundColor Yellow
     }
 }
 
@@ -160,91 +144,118 @@ if (-not $ModelOk) {
         $ModelTemp = Join-Path $env:TEMP "wanxiang-lts-zh-hans.gram.tmp"
         Invoke-WebRequest -Uri $WanxiangModelUrl -OutFile $ModelTemp
         $DownloadHash = (Get-FileHash -Path $ModelTemp -Algorithm SHA256).Hash
-        if ($DownloadHash -ne $RemoteSha256) {
-            Write-Host "❌ 下载的文件与 GitHub 官方 SHA256 校验不匹配，可能下载中断！" -ForegroundColor Red
+        if ($DownloadHash -ne $RemoteWanxiangSha256) {
+            Write-Host "❌ 下载的文件与 GitHub 官方 SHA256 不匹配！" -ForegroundColor Red
             Remove-Item -Path $ModelTemp -Force -ErrorAction SilentlyContinue
         } else {
             Move-Item -Path $ModelTemp -Destination $ModelTarget -Force
-            Write-Host "✅ 万象语言模型下载且 GitHub 官方 SHA256 校验通过！" -ForegroundColor Green
+            Write-Host "✅ 万象语言模型下载且 SHA256 校验通过！" -ForegroundColor Green
         }
     } catch {
         Write-Host "⚠️ 万象语言模型下载失败: $_" -ForegroundColor Yellow
     }
 }
 
-# 5. 联网下载 MoeType 萌娘百科最新无声调词库并动态去重
-Write-Host "🌸 正在联网获取 MoeType (萌娘百科) 最新官方词库..." -ForegroundColor Cyan
-$RawMoeTemp = Join-Path $env:TEMP "toneless_moe_raw.dict.yaml"
+# 5. 动态获取 MoeType 远程 Digest 并智能比对跳过/下载去重
+$TargetMoe = Join-Path $RimeDir "moe.dict.yaml"
+$MoeDigestFile = Join-Path $RimeDir ".moe_digest"
+Write-Host "🌸 正在查询 MoeType 词库 GitHub 远程 Digest SHA256..." -ForegroundColor Cyan
+
+$RemoteMoeSha256 = $null
 try {
-    Invoke-WebRequest -Uri $MoeTypeReleaseUrl -OutFile $RawMoeTemp
-    Write-Host "✂️  正在对 MoeType 进行动态去重 (只保留独有词条)..." -ForegroundColor Cyan
-    
-    $RimeWords = [System.Collections.Generic.HashSet[string]]::new()
-    $CnDictsDir = Join-Path $RimeDir "cn_dicts"
-    if (Test-Path $CnDictsDir) {
-        Get-ChildItem -Path $CnDictsDir -Recurse -Include "*.dict.yaml", "*.txt" | ForEach-Object {
-            $inBody = $false
-            foreach ($line in [System.IO.File]::ReadLines($_.FullName)) {
-                $trimmed = $line.Trim()
-                if ($trimmed -eq '...') { $inBody = $true; continue }
-                if (-not $inBody -or [string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith('#')) { continue }
-                $p = $trimmed.Split("`t")
-                if ($p.Length -ge 1 -and $p[0].Trim()) {
-                    [void]$RimeWords.Add($p[0].Trim())
+    $MoeJson = Invoke-RestMethod -Uri $MoeTypeApiUrl -Headers @{"User-Agent"="Mozilla/5.0"} -TimeoutSec 8
+    $MoeAsset = $MoeJson.assets | Where-Object { $_.name -eq "toneless_moe.dict.yaml" }
+    if ($MoeAsset -and $MoeAsset.digest -and $MoeAsset.digest.StartsWith("sha256:")) {
+        $RemoteMoeSha256 = $MoeAsset.digest.Substring(7).ToUpper()
+    }
+} catch {}
+
+if (-not $RemoteMoeSha256) {
+    $RemoteMoeSha256 = $FallbackMoeSha256
+}
+
+$MoeNeedUpdate = $true
+if ((Test-Path $TargetMoe) -and (Test-Path $MoeDigestFile)) {
+    $SavedDigest = (Get-Content $MoeDigestFile -ErrorAction SilentlyContinue).Trim()
+    if ($SavedDigest -eq $RemoteMoeSha256) {
+        Write-Host "✅ 本地 MoeType 词库与 GitHub 远程最新 Digest 一致，跳过下载与去重！" -ForegroundColor Green
+        $MoeNeedUpdate = $false
+    }
+}
+
+if ($MoeNeedUpdate) {
+    Write-Host "🌸 正在获取 MoeType 最新词库并进行动态去重..." -ForegroundColor Cyan
+    $RawMoeTemp = Join-Path $env:TEMP "toneless_moe_raw.dict.yaml"
+    try {
+        Invoke-WebRequest -Uri $MoeTypeReleaseUrl -OutFile $RawMoeTemp
+        
+        $RimeWords = [System.Collections.Generic.HashSet[string]]::new()
+        $CnDictsDir = Join-Path $RimeDir "cn_dicts"
+        if (Test-Path $CnDictsDir) {
+            Get-ChildItem -Path $CnDictsDir -Recurse -Include "*.dict.yaml", "*.txt" | ForEach-Object {
+                $inBody = $false
+                foreach ($line in [System.IO.File]::ReadLines($_.FullName)) {
+                    $trimmed = $line.Trim()
+                    if ($trimmed -eq '...') { $inBody = $true; continue }
+                    if (-not $inBody -or [string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith('#')) { continue }
+                    $p = $trimmed.Split("`t")
+                    if ($p.Length -ge 1 -and $p[0].Trim()) {
+                        [void]$RimeWords.Add($p[0].Trim())
+                    }
                 }
             }
         }
-    }
-    
-    $TargetMoe = Join-Path $RimeDir "moe.dict.yaml"
-    $Writer = [System.IO.StreamWriter]::new($TargetMoe, $false, [System.Text.Encoding]::UTF8)
-    $inBody = $false
-    $kept = 0
-    $removed = 0
-    
-    foreach ($line in [System.IO.File]::ReadLines($RawMoeTemp)) {
-        $trimmed = $line.Trim()
-        if ($trimmed -eq '...') { $inBody = $true; $Writer.WriteLine($line); continue }
-        if (-not $inBody) { $Writer.WriteLine($line); continue }
-        if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith('#')) { $Writer.WriteLine($line); continue }
         
-        $p = $trimmed.Split("`t")
-        $w = $p[0].Trim()
-        if ($RimeWords.Contains($w)) {
-            $removed++
-        } else {
-            $kept++
-            $Writer.WriteLine($line)
+        $Writer = [System.IO.StreamWriter]::new($TargetMoe, $false, [System.Text.Encoding]::UTF8)
+        $inBody = $false
+        $kept = 0
+        $removed = 0
+        
+        foreach ($line in [System.IO.File]::ReadLines($RawMoeTemp)) {
+            $trimmed = $line.Trim()
+            if ($trimmed -eq '...') { $inBody = $true; $Writer.WriteLine($line); continue }
+            if (-not $inBody) { $Writer.WriteLine($line); continue }
+            if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith('#')) { $Writer.WriteLine($line); continue }
+            
+            $p = $trimmed.Split("`t")
+            $w = $p[0].Trim()
+            if ($RimeWords.Contains($w)) {
+                $removed++
+            } else {
+                $kept++
+                $Writer.WriteLine($line)
+            }
         }
+        $Writer.Close()
+        Remove-Item -Path $RawMoeTemp -Force -ErrorAction SilentlyContinue
+        Set-Content -Path $MoeDigestFile -Value $RemoteMoeSha256 -Encoding ASCII
+        Write-Host "   去重完成：保留独有词条 $kept，剔除重复词条 $removed" -ForegroundColor Green
+    } catch {
+        Write-Host "⚠️ MoeType 处理跳过: $_" -ForegroundColor Yellow
     }
-    $Writer.Close()
-    Remove-Item -Path $RawMoeTemp -Force -ErrorAction SilentlyContinue
-    Write-Host "   去重完成：保留独有词条 $kept，剔除重复词条 $removed" -ForegroundColor Green
-} catch {
-    Write-Host "⚠️ MoeType 下载/处理跳过: $_" -ForegroundColor Yellow
 }
 
 # 6. 复制个人自定义配置与聚合词库定义
 Write-Host "⚙️  正在应用个人配置与 Rheatin Solarized 皮肤..." -ForegroundColor Cyan
-Copy-Item -Path (Join-Path $ScriptDir "*.custom.yaml") -Destination $RimeDir -Force
-Copy-Item -Path (Join-Path $ScriptDir "*.dict.yaml") -Destination $RimeDir -Force
-Copy-Item -Path (Join-Path $ScriptDir "symbols_v.yaml") -Destination $RimeDir -Force
-if (Test-Path (Join-Path $ScriptDir "custom_phrase.txt")) {
-    Copy-Item -Path (Join-Path $ScriptDir "custom_phrase.txt") -Destination $RimeDir -Force
+Copy-Item -Path (Join-Path $SourceDir "*.custom.yaml") -Destination $RimeDir -Force
+Copy-Item -Path (Join-Path $SourceDir "*.dict.yaml") -Destination $RimeDir -Force
+Copy-Item -Path (Join-Path $SourceDir "symbols_v.yaml") -Destination $RimeDir -Force
+if (Test-Path (Join-Path $SourceDir "custom_phrase.txt")) {
+    Copy-Item -Path (Join-Path $SourceDir "custom_phrase.txt") -Destination $RimeDir -Force
 }
 Write-Host "✅ 个人配置应用成功！" -ForegroundColor Green
 
 # 7. 导入跨平台历史词频快照
-if (Test-Path (Join-Path $ScriptDir "sync")) {
+if (Test-Path (Join-Path $SourceDir "sync")) {
     Write-Host "🧠 正在导入跨平台自造词与历史词频..." -ForegroundColor Cyan
     $TargetSync = Join-Path $RimeDir "sync"
     if (-not (Test-Path $TargetSync)) { New-Item -ItemType Directory -Path $TargetSync -Force | Out-Null }
-    Copy-Item -Path (Join-Path $ScriptDir "sync\*") -Destination $TargetSync -Recurse -Force
+    Copy-Item -Path (Join-Path $SourceDir "sync\*") -Destination $TargetSync -Recurse -Force
     Write-Host "✅ 跨平台词频快照就绪！" -ForegroundColor Green
 }
 
 # 8. 安装思源宋体与 Symbols Nerd Font 字体 (若已安装则跳过)
-$FontsSource = Join-Path $ScriptDir "fonts"
+$FontsSource = Join-Path $SourceDir "fonts"
 if (Test-Path $FontsSource) {
     $UserFontsDir = Join-Path $env:LOCALAPPDATA "Microsoft\Windows\Fonts"
     $SystemFontsDir = Join-Path $env:WINDIR "Fonts"
@@ -327,8 +338,8 @@ $StartupFolder = [Environment]::GetFolderPath("Startup")
 $VbsPath = Join-Path $StartupFolder "RimeSyncWatcher.vbs"
 $WatcherScriptPath = Join-Path $PermanentConfigDir "sync_watcher.ps1"
 
-Copy-Item -Path (Join-Path $ScriptDir "sync.ps1") -Destination $PermanentConfigDir -Force
-Copy-Item -Path (Join-Path $ScriptDir "sync_watcher.ps1") -Destination $PermanentConfigDir -Force
+Copy-Item -Path (Join-Path $SourceDir "sync.ps1") -Destination $PermanentConfigDir -Force
+Copy-Item -Path (Join-Path $SourceDir "sync_watcher.ps1") -Destination $PermanentConfigDir -Force
 
 $VbsContent = "CreateObject(`"Wscript.Shell`").Run `"powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"`"$WatcherScriptPath`"`"`", 0, False"
 Set-Content -Path $VbsPath -Value $VbsContent -Encoding ASCII
@@ -350,10 +361,6 @@ if ($Deployer) {
 
 if ($WeaselServer) {
     Start-Process -FilePath $WeaselServer.FullName
-}
-
-if ($TempDir -and (Test-Path $TempDir)) {
-    Remove-Item -Recurse -Force $TempDir -ErrorAction SilentlyContinue
 }
 
 Write-Host "====================================================" -ForegroundColor Cyan
