@@ -1,9 +1,7 @@
 patch:
-  # 输入方案列表：首选白霜拼音 (rime_frost)
+  # 输入方案列表：仅保留白霜拼音 (rime_frost)，彻底杜绝误切到纯英文方案 melt_eng
   schema_list:
     - schema: rime_frost
-    - schema: melt_eng
-    - schema: t9
 
   # 候选词数量
   menu/page_size: 5
@@ -18,7 +16,7 @@ patch:
       Control_L: noop
       Control_R: noop
 
-  # 快捷键定制：确保大键盘与小键盘数字键在有候选时 100% 选字
+  # 快捷键定制：强制大键盘与小键盘数字键在有候选时 100% 选字
   key_binder/+:
     bindings:
       - { when: has_menu, accept: "1", select: 0 }
