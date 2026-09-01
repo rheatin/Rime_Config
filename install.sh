@@ -19,8 +19,9 @@ echo -e "${BLUE}====================================================${NC}"
 
 REPO_URL="https://github.com/rheatin/Rime_Config.git"
 RIME_FROST_URL="https://github.com/gaboolic/rime-frost.git"
+WANXIANG_API_URL="https://api.github.com/repos/amzxyz/RIME-LMDG/releases/tags/LTS"
 WANXIANG_MODEL_URL="https://github.com/amzxyz/RIME-LMDG/releases/download/LTS/wanxiang-lts-zh-hans.gram"
-WANXIANG_MODEL_SHA256="1635588006d79cc6955fbcf3d8de12822a36856eb5408735a8b4a2952b16cadf"
+FALLBACK_SHA256="1635588006d79cc6955fbcf3d8de12822a36856eb5408735a8b4a2952b16cadf"
 MOETYPE_RELEASE_URL="https://github.com/suiginko/moetype/releases/latest/download/toneless_moe.dict.yaml"
 
 # 1. 确定脚本所在目录或通过网络拉取
@@ -120,7 +121,7 @@ else
   git clone --depth=1 "$RIME_FROST_URL" "$RIME_DIR"
 fi
 
-# 5. SHA256 校验与下载万象 (Wanxiang) LTS 语言模型 (.gram)
+# 5. 动态获取 GitHub Release 远程 SHA256 并校验万象语言模型
 MODEL_TARGET="$RIME_DIR/wanxiang-lts-zh-hans.gram"
 calc_sha256() {
   if command -v shasum >/dev/null 2>&1; then
@@ -132,15 +133,40 @@ calc_sha256() {
   fi
 }
 
+echo -e "${BLUE}🌐 正在查询 GitHub 远程 Release 权威 SHA256 指纹...${NC}"
+REMOTE_SHA256=$(python3 -c "
+import urllib.request, json
+url = '$WANXIANG_API_URL'
+req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+try:
+    with urllib.request.urlopen(req, timeout=8) as resp:
+        data = json.loads(resp.read().decode())
+        for a in data.get('assets', []):
+            if a.get('name') == 'wanxiang-lts-zh-hans.gram':
+                d = a.get('digest', '')
+                if d.startswith('sha256:'):
+                    print(d.split('sha256:')[1].strip())
+                    break
+except Exception:
+    pass
+" 2>/dev/null || echo "")
+
+if [ -z "$REMOTE_SHA256" ]; then
+  REMOTE_SHA256="$FALLBACK_SHA256"
+  echo -e "${YELLOW}ℹ️ 使用内置基准 SHA256 指纹: ${REMOTE_SHA256:0:16}...${NC}"
+else
+  echo -e "${GREEN}✅ 成功获取 GitHub 远程最新 SHA256: ${REMOTE_SHA256:0:16}...${NC}"
+fi
+
 MODEL_OK=false
 if [ -f "$MODEL_TARGET" ]; then
-  echo -e "${BLUE}🔍 正在校验本地万象语言模型 SHA256...${NC}"
+  echo -e "${BLUE}🔍 正在校验本地万象模型 SHA256...${NC}"
   CURRENT_SHA="$(calc_sha256 "$MODEL_TARGET")"
-  if [ "$CURRENT_SHA" = "$WANXIANG_MODEL_SHA256" ]; then
-    echo -e "${GREEN}✅ SHA256 校验通过，万象语言模型完整无误，跳过下载！${NC}"
+  if [ "$CURRENT_SHA" = "$REMOTE_SHA256" ]; then
+    echo -e "${GREEN}✅ 本地模型与 GitHub 远程 Release 权威指纹完全一致，跳过下载！${NC}"
     MODEL_OK=true
   else
-    echo -e "${YELLOW}⚠️ 本地模型 SHA256 不匹配或已损坏，准备重新下载...${NC}"
+    echo -e "${YELLOW}⚠️ 本地模型 SHA256 不一致或有更新，准备拉取最新版本...${NC}"
   fi
 fi
 
@@ -148,13 +174,13 @@ if [ "$MODEL_OK" = false ]; then
   echo -e "${BLUE}🧠 正在下载万象 (Wanxiang) LTS 语法语言模型 (~400MB)...${NC}"
   curl -fsSL --http1.1 "$WANXIANG_MODEL_URL" -o "$MODEL_TARGET.tmp"
   DOWNLOAD_SHA="$(calc_sha256 "$MODEL_TARGET.tmp")"
-  if [ -n "$DOWNLOAD_SHA" ] && [ "$DOWNLOAD_SHA" != "$WANXIANG_MODEL_SHA256" ]; then
-    echo -e "${RED}❌ 下载的文件 SHA256 校验不匹配，可能下载中断！${NC}"
+  if [ -n "$DOWNLOAD_SHA" ] && [ "$DOWNLOAD_SHA" != "$REMOTE_SHA256" ]; then
+    echo -e "${RED}❌ 下载的文件与 GitHub 官方 SHA256 校验不匹配，可能下载中断！${NC}"
     rm -f "$MODEL_TARGET.tmp"
     exit 1
   fi
   mv "$MODEL_TARGET.tmp" "$MODEL_TARGET"
-  echo -e "${GREEN}✅ 万象语言模型下载且 SHA256 校验通过！${NC}"
+  echo -e "${GREEN}✅ 万象语言模型下载且 GitHub 官方 SHA256 校验通过！${NC}"
 fi
 
 # 6. 联网下载 MoeType 萌娘百科最新无声调词库并动态去重
