@@ -237,11 +237,19 @@ if ($MoeNeedUpdate) {
 
 # 6. 复制个人自定义配置与聚合词库定义
 Write-Host "⚙️  正在应用个人配置与 Rheatin Solarized 皮肤..." -ForegroundColor Cyan
-Copy-Item -Path (Join-Path $SourceDir "*.custom.yaml") -Destination $RimeDir -Force
-Copy-Item -Path (Join-Path $SourceDir "*.dict.yaml") -Destination $RimeDir -Force
-Copy-Item -Path (Join-Path $SourceDir "symbols_v.yaml") -Destination $RimeDir -Force
-if (Test-Path (Join-Path $SourceDir "custom_phrase.txt")) {
-    Copy-Item -Path (Join-Path $SourceDir "custom_phrase.txt") -Destination $RimeDir -Force
+
+# 复制所有 custom.yaml（包括 weasel.custom.yaml、rime_frost.custom.yaml 等）
+Get-ChildItem -Path $SourceDir -Filter "*.custom.yaml" -File -ErrorAction SilentlyContinue | Copy-Item -Destination $RimeDir -Force
+
+# 复制所有 dict.yaml 词库
+Get-ChildItem -Path $SourceDir -Filter "*.dict.yaml" -File -ErrorAction SilentlyContinue | Copy-Item -Destination $RimeDir -Force
+
+# 复制特定 yaml 与 txt 文件
+@("symbols_v.yaml", "custom_phrase.txt", "weasel.custom.yaml") | ForEach-Object {
+    $targetFile = Join-Path $SourceDir $_
+    if (Test-Path $targetFile) {
+        Copy-Item -Path $targetFile -Destination $RimeDir -Force
+    }
 }
 Write-Host "✅ 个人配置应用成功！" -ForegroundColor Green
 
@@ -338,8 +346,15 @@ $StartupFolder = [Environment]::GetFolderPath("Startup")
 $VbsPath = Join-Path $StartupFolder "RimeSyncWatcher.vbs"
 $WatcherScriptPath = Join-Path $PermanentConfigDir "sync_watcher.ps1"
 
-Copy-Item -Path (Join-Path $SourceDir "sync.ps1") -Destination $PermanentConfigDir -Force
-Copy-Item -Path (Join-Path $SourceDir "sync_watcher.ps1") -Destination $PermanentConfigDir -Force
+# 仅在源目录与永久配置目录不同时才执行复制，避免覆盖自身的报错
+if ($SourceDir -ne $PermanentConfigDir) {
+    if (Test-Path (Join-Path $SourceDir "sync.ps1")) {
+        Copy-Item -Path (Join-Path $SourceDir "sync.ps1") -Destination $PermanentConfigDir -Force
+    }
+    if (Test-Path (Join-Path $SourceDir "sync_watcher.ps1")) {
+        Copy-Item -Path (Join-Path $SourceDir "sync_watcher.ps1") -Destination $PermanentConfigDir -Force
+    }
+}
 
 $VbsContent = "CreateObject(`"Wscript.Shell`").Run `"powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"`"$WatcherScriptPath`"`"`", 0, False"
 Set-Content -Path $VbsPath -Value $VbsContent -Encoding ASCII
