@@ -224,7 +224,7 @@ try {
     Write-Host "⚠️ MoeType 下载/处理跳过: $_" -ForegroundColor Yellow
 }
 
-# 6. 复制个人自定义配置与聚合词库定义 (*.custom.yaml & *.dict.yaml)
+# 6. 复制个人自定义配置与聚合词库定义
 Write-Host "⚙️  正在应用个人配置与 Rheatin Solarized 皮肤..." -ForegroundColor Cyan
 Copy-Item -Path (Join-Path $ScriptDir "*.custom.yaml") -Destination $RimeDir -Force
 Copy-Item -Path (Join-Path $ScriptDir "*.dict.yaml") -Destination $RimeDir -Force
@@ -243,14 +243,14 @@ if (Test-Path (Join-Path $ScriptDir "sync")) {
     Write-Host "✅ 跨平台词频快照就绪！" -ForegroundColor Green
 }
 
-# 8. 安装思源宋体 (若已安装则跳过)
+# 8. 安装思源宋体与 Symbols Nerd Font 字体 (若已安装则跳过)
 $FontsSource = Join-Path $ScriptDir "fonts"
 if (Test-Path $FontsSource) {
     $UserFontsDir = Join-Path $env:LOCALAPPDATA "Microsoft\Windows\Fonts"
     $SystemFontsDir = Join-Path $env:WINDIR "Fonts"
     
     $AllInstalled = $true
-    Get-ChildItem -Path $FontsSource -Filter "*.otf" | ForEach-Object {
+    Get-ChildItem -Path $FontsSource -File | ForEach-Object {
         $InstalledInUser = Test-Path (Join-Path $UserFontsDir $_.Name)
         $InstalledInSys = Test-Path (Join-Path $SystemFontsDir $_.Name)
         if (-not ($InstalledInUser -or $InstalledInSys)) {
@@ -259,9 +259,9 @@ if (Test-Path $FontsSource) {
     }
 
     if ($AllInstalled) {
-        Write-Host "✅ 检测到思源宋体已安装，自动跳过安装流程！" -ForegroundColor Green
+        Write-Host "✅ 检测到思源宋体与 Symbols Nerd Font 已安装，自动跳过安装流程！" -ForegroundColor Green
     } else {
-        Write-Host "🔤 正在安装并注册思源宋体..." -ForegroundColor Cyan
+        Write-Host "🔤 正在安装并注册思源宋体与 Symbols Nerd Font..." -ForegroundColor Cyan
         if (-not (Test-Path $UserFontsDir)) { New-Item -ItemType Directory -Path $UserFontsDir -Force | Out-Null }
         
         $RegKeyPath = "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Fonts"
@@ -283,7 +283,7 @@ if (Test-Path $FontsSource) {
         try {
             $ShellApp = New-Object -ComObject Shell.Application
             $FontsFolder = $ShellApp.Namespace(0x14)
-            Get-ChildItem -Path $FontsSource -Filter "*.otf" | ForEach-Object {
+            Get-ChildItem -Path $FontsSource -File | ForEach-Object {
                 $TargetSystemFont = Join-Path $SystemFontsDir $_.Name
                 if (-not (Test-Path $TargetSystemFont)) {
                     $FontsFolder.CopyHere($_.FullName, 16)
@@ -291,7 +291,7 @@ if (Test-Path $FontsSource) {
             }
         } catch {}
 
-        Get-ChildItem -Path $FontsSource -Filter "*.otf" | ForEach-Object {
+        Get-ChildItem -Path $FontsSource -File | ForEach-Object {
             $FontName = $_.Name
             $DestPath = Join-Path $UserFontsDir $FontName
             
@@ -306,7 +306,9 @@ if (Test-Path $FontsSource) {
                 "$($_.BaseName) (OpenType)",
                 "Source Han Serif SC Heavy (OpenType)",
                 "Source Han Serif TC Heavy (OpenType)",
-                "思源宋体 Heavy (OpenType)"
+                "思源宋体 Heavy (OpenType)",
+                "Symbols Nerd Font Mono (TrueType)",
+                "Symbols Nerd Font (TrueType)"
             )
             foreach ($alias in $Aliases) {
                 Set-ItemProperty -Path $RegKeyPath -Name $alias -Value $DestPath -Force -ErrorAction SilentlyContinue
@@ -315,7 +317,7 @@ if (Test-Path $FontsSource) {
             try { [FontHelper]::AddFontResource($DestPath) | Out-Null } catch {}
         }
         try { [FontHelper]::SendMessage([IntPtr]0xffff, 0x001D, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null } catch {}
-        Write-Host "✅ 思源宋体安装与即时注册完成！" -ForegroundColor Green
+        Write-Host "✅ 字体安装与即时注册完成！" -ForegroundColor Green
     }
 }
 

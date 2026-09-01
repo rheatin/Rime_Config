@@ -67,9 +67,9 @@ patch:
     border_width: 10                       # 左右呼吸边距
     line_spacing: 6
     spacing: 12
-    font_face: "Lucida Grande"
+    font_face: "Lucida Grande, Symbols Nerd Font Mono, Symbols Nerd Font"
     font_point: 21
-    label_font_point: 13                   # 序号字号微调适中
+    label_font_point: 13
     comment_font_point: 14
 
   # 自定义配色方案：Rheatin Solarized
@@ -80,7 +80,8 @@ patch:
     back_color: 0xee362b00                 # 毛玻璃半透明底色
     border_color: 0xee362b00
     text_color: 0x8236d3
-    font_face: "SourceHanSerifTC-Heavy, SourceHanSerifSC-Heavy, PingFang SC"
+    # 主体思源宋体 + 苹方 + Symbols Nerd Font 符号回退链
+    font_face: "SourceHanSerifTC-Heavy, SourceHanSerifSC-Heavy, PingFang SC, Symbols Nerd Font Mono, Symbols Nerd Font, SymbolsNFM, SymbolsNF"
     font_point: 18
     label_font_point: 13
     label_color: 0xa1a093                  # 序号清晰色：Solarized Base1 柔亮灰白

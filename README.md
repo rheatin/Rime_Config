@@ -1,14 +1,17 @@
 # ❄️ Rime_Config (白霜拼音 + 万象语言模型 + MoeType 个人跨平台自动化配置)
 
-基于 [白霜拼音 (rime-frost)](https://github.com/gaboolic/rime-frost) 与 [万象语言模型 (RIME-LMDG)](https://github.com/amzxyz/RIME-LMDG) 深度定制的个人跨平台高准确率输入法配置库，挂载 [MoeType (萌娘百科)](https://github.com/suiginko/moetype) 扩展词库。
+基于 [白霜拼音 (rime-frost)](https://github.com/gaboolic/rime-frost) 与 [万象语言模型 (RIME-LMDG)](https://github.com/amzxyz/RIME-LMDG) 深度定制的个人跨平台高准确率输入法配置库，挂载 [MoeType (萌娘百科)](https://github.com/suiginko/moetype) 扩展词库与 [Symbols Nerd Font](https://www.nerdfonts.com/) 全量符号回退链。
 
 ---
 
 ## ✨ 核心特性
 
 - 🧠 **万象语言模型 (Wanxiang LTS)**：内置 400MB N-gram 语法语言模型，整句输入首选字词准确率大幅跃升！
-- ❄️ **白霜拼音 (rime-frost)**：20+ 专业细胞词库（计算机、历史、地理、成语、医疗等），比传统词库更精准。
+- ❄️ **白霜拼音 (rime-frost)**：20+ 专业细胞词库（计算机、历史、地理、成语、医疗等）。
 - 🌸 **MoeType 萌娘百科动态去重**：部署时全自动拉取最新 Release 并动态剔除重合词，保留 16.5 万纯增量二次元词库。
+- 🔣 **正统 v 模式 + Symbols Nerd Font 符号回退**：
+  - 支持 `vfh`(符号)、`vjt`(箭头)、`vdw`(单位)、`vsz`(数字) 以及 `vhelp` 符号总表；
+  - 内置 **Symbols Nerd Font Mono** 字体回退链，彻底杜绝特殊符号、开发者图标与 Unicode 字符乱码！
 - 🌐 **全平台智能自适应**：
   - **macOS**：自动安装并配置 **Squirrel (鼠须管)**
   - **Windows**：自动安装并配置 **Weasel (小狼毫)**
@@ -44,8 +47,8 @@ irm https://raw.githubusercontent.com/rheatin/Rime_Config/main/install.ps1 | iex
 
 ```text
 .
-├── install.sh                   # macOS & Linux 全自动安装部署脚本 (白霜 + 万象 + MoeType)
-├── install.ps1                  # Windows (小狼毫) 全自动安装脚本 (白霜 + 万象 + MoeType)
+├── install.sh                   # macOS & Linux 全自动安装部署脚本
+├── install.ps1                  # Windows (小狼毫) 全自动安装脚本
 ├── sync.sh                      # 🔄 macOS/Linux 一键词频同步
 ├── sync.ps1                     # 🔄 Windows 一键词频同步
 ├── sync_watcher.ps1             # ⚡ Windows 后台变动监听守护服务
@@ -54,7 +57,8 @@ irm https://raw.githubusercontent.com/rheatin/Rime_Config/main/install.ps1 | iex
 ├── weasel.custom.yaml           # 小狼毫外观与 Rheatin Solarized 配色 (Windows)
 ├── rime_frost.custom.yaml       # 白霜拼音行为定制与万象语言模型挂载
 ├── rime_frost.extended.dict.yaml# 聚合词库入口 (白霜拼音全量 + 萌娘百科)
-├── fonts/                       # 思源宋体 (Heavy) 字体源文件
+├── symbols_v.yaml               # 正统 v 模式符号映射表
+├── fonts/                       # 思源宋体 Heavy & Symbols Nerd Font 字体库
 ├── sync/                        # 🧠 个人自造词与跨平台词频快照归档
 └── README.md
 ```

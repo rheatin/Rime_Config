@@ -229,7 +229,7 @@ else
   echo -e "${YELLOW}⚠️ MoeType 下载失败，跳过扩展词库。${NC}"
 fi
 
-# 7. 同步个人精简配置与聚合词库定义 (*.custom.yaml & rime_frost.extended.dict.yaml)
+# 7. 同步个人精简配置与聚合词库定义
 echo -e "${BLUE}⚙️  正在应用个人自定义配置与 Rheatin 配色...${NC}"
 cp -f "$SCRIPT_DIR"/*.custom.yaml "$RIME_DIR/" 2>/dev/null || true
 cp -f "$SCRIPT_DIR"/*.dict.yaml "$RIME_DIR/" 2>/dev/null || true
@@ -239,10 +239,10 @@ if [ -f "$SCRIPT_DIR/custom_phrase.txt" ]; then
 fi
 echo -e "${GREEN}✅ 个人配置应用成功！${NC}"
 
-# 8. 安装思源宋体到系统字体库 (若已安装则跳过)
+# 8. 安装思源宋体与 Symbols Nerd Font 字体到系统字体库 (若已安装则跳过)
 if [ -d "$SCRIPT_DIR/fonts" ]; then
   FONTS_EXIST=true
-  for f in "$SCRIPT_DIR/fonts/"*.otf; do
+  for f in "$SCRIPT_DIR/fonts/"*.*; do
     [ -f "$f" ] || continue
     FONT_NAME="$(basename "$f")"
     if [ ! -f "$FONTS_DIR/$FONT_NAME" ] && [ ! -f "/Library/Fonts/$FONT_NAME" ] && [ ! -f "/usr/share/fonts/$FONT_NAME" ]; then
@@ -252,9 +252,9 @@ if [ -d "$SCRIPT_DIR/fonts" ]; then
   done
 
   if [ "$FONTS_EXIST" = true ]; then
-    echo -e "${GREEN}✅ 检测到思源宋体已安装，自动跳过字体安装！${NC}"
+    echo -e "${GREEN}✅ 检测到思源宋体与 Symbols Nerd Font 已安装，自动跳过字体安装！${NC}"
   else
-    echo -e "${BLUE}🔤 正在安装思源宋体到系统字体库...${NC}"
+    echo -e "${BLUE}🔤 正在安装思源宋体与 Symbols Nerd Font 到系统字体库...${NC}"
     mkdir -p "$FONTS_DIR"
     cp -f "$SCRIPT_DIR/fonts/"* "$FONTS_DIR/"
     if [ "$PLATFORM" = "linux" ] && command -v fc-cache >/dev/null 2>&1; then
@@ -295,7 +295,7 @@ if [ "$PLATFORM" = "macos" ]; then
 fi
 
 # 11. 重新部署与合并词频生效
-echo -e "${BLUE}🔄 触发 Rime 重新部署与词频合并 (首次编译语言模型需约 15~20 秒)...${NC}"
+echo -e "${BLUE}🔄 触发 Rime 重新部署与词频合并...${NC}"
 if [ "$PLATFORM" = "macos" ]; then
   if [ -f "$SQUIRREL_APP/Contents/MacOS/Squirrel" ]; then
     "$SQUIRREL_APP/Contents/MacOS/Squirrel" --reload || true
