@@ -5,6 +5,10 @@ patch:
   # 默认开启 Emoji 候选项直接输出 (💀 关 / 😄 开)
   "switches/@4/reset": 1
 
+  # 彻底关闭候选词后的拼音注释与多余提示
+  "translator/always_show_comments": false
+  "translator/spelling_hints": 0
+
   # 挂载聚合了 MoeType (萌娘百科) 的白霜拼音扩展词库
   "translator/dictionary": rime_frost.extended
 
@@ -30,3 +34,19 @@ patch:
     - { when: has_menu, accept: semicolon, send: 2 }
     - { when: has_menu, accept: minus, send: Page_Up }
     - { when: has_menu, accept: equal, send: Page_Down }
+
+  # 优化滤镜列表：移除 is_in_user_dict (消除*号干扰) 和 corrector (消除多余拼音暴露)
+  "engine/filters":
+    - reverse_lookup_filter@radical_reverse_lookup
+    - lua_filter@*autocap_filter
+    - lua_filter@*v_filter
+    - lua_filter@*pin_cand_filter
+    - lua_filter@*reduce_english_filter
+    - lua_filter@*aux_lookup_filter
+    - simplifier@emoji
+    - simplifier@chaifen
+    - simplifier@chaifen_all
+    - simplifier@chinese_english
+    - simplifier@traditionalize
+    - simplifier@mars
+    - uniquifier
