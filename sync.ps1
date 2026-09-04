@@ -52,6 +52,18 @@ if (Test-Path (Join-Path $ScriptDir ".git")) {
     Pop-Location
 }
 
+# 2.1 检查并应用从 Mac/云端同步过来的系统文本替换短语
+$RepoPhrase = Join-Path $ScriptDir "custom_phrase.txt"
+$RimePhrase = Join-Path $RimeDir "custom_phrase.txt"
+$PhraseUpdated = $false
+if (Test-Path $RepoPhrase) {
+    if ((-not (Test-Path $RimePhrase)) -or ((Get-FileHash $RepoPhrase).Hash -ne (Get-FileHash $RimePhrase).Hash)) {
+        Log-Message "发现最新的系统自定义短语，正在更新到小狼毫用户目录..."
+        Copy-Item -Path $RepoPhrase -Destination $RimePhrase -Force
+        $PhraseUpdated = $true
+    }
+}
+
 # 3. 归档词频文件到仓库
 $SourceSync = Join-Path $RimeDir "sync"
 $TargetSync = Join-Path $ScriptDir "sync"
@@ -69,11 +81,11 @@ if (Test-Path $SourceSync) {
 # 4. 提交并推送到 GitHub
 if (Test-Path (Join-Path $ScriptDir ".git")) {
     Push-Location $ScriptDir
-    git add sync/
+    git add sync/ custom_phrase.txt 2>$null
     $Status = git status --porcelain
     
     if ($Status) {
-        git commit -m "sync(windows): 自动同步 Windows 端词频与自造词记忆 $DateStr" 2>&1 | Out-String | ForEach-Object { Log-Message "Git Commit: $_" }
+        git commit -m "sync(windows): 自动同步 Windows 端词频与短语 $DateStr" 2>&1 | Out-String | ForEach-Object { Log-Message "Git Commit: $_" }
         
         $PushOut = git push origin main 2>&1 | Out-String
         Log-Message "Git Push 结果: $PushOut"
@@ -94,6 +106,14 @@ if (Test-Path (Join-Path $ScriptDir ".git")) {
         Log-Message "✨ 词频已是最新，无新增改动。"
     }
     Pop-Location
+}
+
+if ($PhraseUpdated) {
+    Log-Message "正在触发小狼毫重新部署以使新自定义短语生效..."
+    $Deployer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime", "${env:ProgramFiles}\Rime" -Filter "WeaselDeployer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($Deployer) {
+        Start-Process -FilePath $Deployer.FullName -ArgumentList "/deploy" -NoNewWindow
+    }
 }
 
 Log-Message "===== 同步流程结束 =====`n"

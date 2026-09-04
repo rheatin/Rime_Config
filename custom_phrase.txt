@@ -1,0 +1,49 @@
+# Rime table
+# coding: utf-8
+#@/db_name	custom_phrase.txt
+#@/db_type	tabledb
+#
+# 苹果系统「文本替换」短语自动同步 (全拼 26键)
+# 格式：文字<Tab>编码<Tab>权重
+#
+# 此行之后不能写注释
+
+马上到！	msd	1000
+wrt.ofchar.online:	wrt	1000
+香漫雅园	xiang	1000
+On my way!	omw	1000
+kaustin8@email.cpcc.edu	kau	1000
+321088199305095098	3210	1000
+17601401600	176	1000
+🐛Bug fix:	bug:	1000
+🚀Update:	roc:	1000
+379554000361302	mygs	1000
+6225990038698450	hqbyl	1000
+5276610034069775	wsdgs	1000
+245EBE5191C5	245	1000
+6223093050810034509	zhes	1000
+6258101675830212	gf	1000
+6259980108772268	nh	1000
+werwangsun@vip.qq.com	wer	1000
+＞ω＜	qin	1000
+smoong10@gmail.com	smo	1000
+125110985@qq.com	125	1000
+✨Feat:	feat:	1000
+RheatiN	rhe	1000
+雲母坂	きららざか	1000
+5188029070095098	zrb	1000
+6226560146487523	hrb	1000
+370571809405063	hx	1000
+4514617646979635	zhaos	1000
+6217231102006577794	gs	1000
+哔哩哔哩	bili	1000
+W6261031c	w626	1000
+rheatin@qq.com	rhe	1000
+钟离秋	zhong	1000
+🔧Fix:	fix:	1000
+rheatin	rhe	1000
+05145719	0514	1000
+17712354903	177	1000
+6259988101597715	yry	1000
+江苏省苏州市吴江区香漫雅园13栋1807 草草 17601401600	jiangs	1000
+S6ST 5RHE TWKE Q7HG S2SE O5TQ H562 KD73	bitwarden	1000

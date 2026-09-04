@@ -17,9 +17,13 @@
   - **Windows**：自动安装并配置 **Weasel (小狼毫)**
   - **Linux** (Ubuntu / Debian / Arch / Fedora 等)：自动安装 **Fcitx5-rime**
 - 🔄 **双向跨平台自造词与词频实时云同步**：
-  - **macOS**：点击状态栏「Sync user data」➔ 自动静默 Push 到 GitHub 并弹窗通知；
-  - **Windows**：点击托盘「用户资料同步」➔ 自动静默 Push 到 GitHub 并弹气泡通知；
+  - **macOS**：点击状态栏「Sync user data」➔ 自动拉取苹果系统「文本替换」数据库并备份词频 ➔ 静默 Push 到 GitHub 并弹窗通知；
+  - **Windows**：点击托盘「用户资料同步」➔ 自动从 GitHub 拉取 Mac 同步的系统短语与词频并重新部署 ➔ 弹气泡通知；
   - **双向互通合并**：Mac 与 Windows 之间的打字习惯和自造词永远保持双向合并与实时互通。
+- ⚡ **系统文本替换（自定义短语）跨平台与绝对置顶**：
+  - Mac 同步时全自动读取系统 `TextReplacements.db` 导出为 `custom_phrase.txt` 并推送到仓库；
+  - Windows 执行同步时自动接收更新并热重载；
+  - 锁定 `custom_phrase/initial_quality: 999`，保证快捷短语（邮箱、电话、常用地址等）永远在候选词**第 1 位首选**输出！
 - 🎨 **Rheatin Solarized 配色**：专属深色毛玻璃/悬浮小胶囊排版。
 - 🔤 **思源宋体 Heavy 原生支持**：智能检测系统字体库，按需自动安装。
 
@@ -52,6 +56,7 @@ irm https://raw.githubusercontent.com/rheatin/Rime_Config/main/install.ps1 | iex
 ├── sync.sh                      # 🔄 macOS/Linux 一键词频同步
 ├── sync.ps1                     # 🔄 Windows 一键词频同步
 ├── sync_watcher.ps1             # ⚡ Windows 后台变动监听守护服务
+├── custom_phrase.txt            # ⚡ 苹果系统「文本替换」短语自动同步表 (最高优先级置顶)
 ├── default.custom.yaml          # 默认方案 (rime_frost) 与中英切换快捷键
 ├── squirrel.custom.yaml         # 鼠须管外观与 Rheatin Solarized 配色 (macOS)
 ├── weasel.custom.yaml           # 小狼毫外观与 Rheatin Solarized 配色 (Windows)
