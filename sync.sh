@@ -21,7 +21,7 @@ fi
 # 1. 先拉取远程最新变更 (避免冲突)
 cd "$SCRIPT_DIR"
 if [ -d "$SCRIPT_DIR/.git" ]; then
-  git pull --rebase origin main 2>/dev/null || true
+  git pull --no-rebase origin main 2>/dev/null || true
 fi
 
 # 2. 如果是手动运行，先触发 Squirrel 导出
