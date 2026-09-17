@@ -52,15 +52,36 @@ if (Test-Path (Join-Path $ScriptDir ".git")) {
     Pop-Location
 }
 
-# 2.1 检查并应用从 Mac/云端同步过来的系统文本替换短语
+# 2.1 检查并应用从 Git 同步过来的最新配置文件与系统短语
+$ConfigUpdated = $false
+
+Get-ChildItem -Path $ScriptDir -Filter "*.custom.yaml" -File -ErrorAction SilentlyContinue | ForEach-Object {
+    $src = $_.FullName
+    $dst = Join-Path $RimeDir $_.Name
+    if ((-not (Test-Path $dst)) -or ((Get-FileHash $src).Hash -ne (Get-FileHash $dst).Hash)) {
+        Log-Message "检测到配置文件更新: $($_.Name)，正在应用到小狼毫用户目录..."
+        Copy-Item -Path $src -Destination $dst -Force
+        $ConfigUpdated = $true
+    }
+}
+
+Get-ChildItem -Path $ScriptDir -Filter "*.dict.yaml" -File -ErrorAction SilentlyContinue | ForEach-Object {
+    $src = $_.FullName
+    $dst = Join-Path $RimeDir $_.Name
+    if ((-not (Test-Path $dst)) -or ((Get-FileHash $src).Hash -ne (Get-FileHash $dst).Hash)) {
+        Log-Message "检测到词库文件更新: $($_.Name)，正在应用到小狼毫用户目录..."
+        Copy-Item -Path $src -Destination $dst -Force
+        $ConfigUpdated = $true
+    }
+}
+
 $RepoPhrase = Join-Path $ScriptDir "custom_phrase.txt"
 $RimePhrase = Join-Path $RimeDir "custom_phrase.txt"
-$PhraseUpdated = $false
 if (Test-Path $RepoPhrase) {
     if ((-not (Test-Path $RimePhrase)) -or ((Get-FileHash $RepoPhrase).Hash -ne (Get-FileHash $RimePhrase).Hash)) {
         Log-Message "发现最新的系统自定义短语，正在更新到小狼毫用户目录..."
         Copy-Item -Path $RepoPhrase -Destination $RimePhrase -Force
-        $PhraseUpdated = $true
+        $ConfigUpdated = $true
     }
 }
 
@@ -108,11 +129,11 @@ if (Test-Path (Join-Path $ScriptDir ".git")) {
     Pop-Location
 }
 
-if ($PhraseUpdated) {
-    Log-Message "正在触发小狼毫重新部署以使新自定义短语生效..."
+if ($ConfigUpdated) {
+    Log-Message "正在触发小狼毫重新部署以使最新配置与短语生效..."
     $Deployer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime", "${env:ProgramFiles}\Rime" -Filter "WeaselDeployer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($Deployer) {
-        Start-Process -FilePath $Deployer.FullName -ArgumentList "/deploy" -NoNewWindow
+        Start-Process -FilePath $Deployer.FullName -ArgumentList "/deploy" -Wait
     }
 }
 
