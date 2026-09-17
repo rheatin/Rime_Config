@@ -26,6 +26,9 @@
   - 锁定 `custom_phrase/initial_quality: 999`，保证快捷短语（邮箱、电话、常用地址等）永远在候选词**第 1 位首选**输出！
 - 🎨 **Rheatin Solarized 配色**：专属深色毛玻璃/悬浮小胶囊排版。
 - 🔤 **思源宋体 Heavy 原生支持**：智能检测系统字体库，按需自动安装。
+- 🪟 **分应用中英文自动切换**（除聊天软件与浏览器外一律默认英文）：
+  Windows 与 macOS 的触发机制完全不同，踩坑点与正确姿势详见
+  [docs/分应用中英文切换.md](docs/分应用中英文切换.md)。
 
 ---
 
@@ -64,6 +67,10 @@ irm https://raw.githubusercontent.com/rheatin/Rime_Config/main/install.ps1 | iex
 ├── rime_frost.extended.dict.yaml# 聚合词库入口 (白霜拼音全量 + 萌娘百科)
 ├── symbols_v.yaml               # 正统 v 模式符号映射表
 ├── fonts/                       # 思源宋体 Heavy & Symbols Nerd Font 字体库
+├── tools/
+│   └── New-AppOptions.ps1       # 🪟 扫描运行中/已安装程序，生成 app_options 片段
+├── docs/
+│   └── 分应用中英文切换.md       # 🪟 Weasel 分应用中英切换原理、修复与自检清单
 ├── sync/                        # 🧠 个人自造词与跨平台词频快照归档
 └── README.md
 ```

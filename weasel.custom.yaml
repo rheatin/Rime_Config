@@ -25,10 +25,28 @@ patch:
   "style/layout/hilite_padding_y": 4             # 胶囊上下扩展
   "style/layout/align_type": center
 
-  # 分应用中英文自动切换设定 (默认全局英文，仅特定应用自动切中文)
+  # ══════════════════════════════════════════════════════════════════════════
+  # 分应用中英文自动切换 (Windows / 小狼毫)
+  #
+  # 机制 (已核对 weasel 源码 RimeWithWeasel/RimeWithWeasel.cpp):
+  #   * 键名 = 客户端进程的 exe 文件名 (小写、大小写不敏感)，不是窗口标题、
+  #     不是 AppID、不是子进程名。
+  #   * 值只认 bool。app_options 在**会话创建时**套用一次；同一 App 的
+  #     中/英状态在该 App 自己的会话内保持 (global_ascii: false)。
+  #   * 未列出的 App 不会被设置 ascii_mode，因此回落到 rime_frost 的
+  #     switches/@0/reset: 1 → 英文。这正是「除聊天软件和浏览器外都是英文」。
+  #   * 改了本文件必须「重新部署」才会生效 (小狼毫会重新读取 weasel.yaml)。
+  #
+  # 用 tools/New-AppOptions.ps1 可以自动把当前运行/已安装的程序补全成本文件的
+  # 英文条目，避免遗漏。
+  # ══════════════════════════════════════════════════════════════════════════
   app_options:
-    # ─── 仅少数聊天软件与浏览器默认中文 ───
+    # ─── 聊天与通讯软件 (自动中文) ───
     wechat.exe:
+      ascii_mode: false
+    weixin.exe:            # 新版微信 4.x
+      ascii_mode: false
+    wechatappex.exe:
       ascii_mode: false
     wxwork.exe:
       ascii_mode: false
@@ -38,18 +56,87 @@ patch:
       ascii_mode: false
     slack.exe:
       ascii_mode: false
+    discord.exe:
+      ascii_mode: false
     feishu.exe:
+      ascii_mode: false
+    lark.exe:
       ascii_mode: false
     dingtalk.exe:
       ascii_mode: false
+    whatsapp.exe:
+      ascii_mode: false
+    line.exe:
+      ascii_mode: false
+    teams.exe:
+      ascii_mode: false
+    ms-teams.exe:
+      ascii_mode: false
+
+    # ─── 网页浏览器 (自动中文) ───
     chrome.exe:
       ascii_mode: false
     msedge.exe:
       ascii_mode: false
     firefox.exe:
       ascii_mode: false
+    brave.exe:
+      ascii_mode: false
+    opera.exe:
+      ascii_mode: false
+    vivaldi.exe:
+      ascii_mode: false
+    arc.exe:
+      ascii_mode: false
+    iexplore.exe:
+      ascii_mode: false
 
-    # ─── 笔记办公、终端与代码工具全部默认英文 ───
+    # ─── 以下为「显式英文」，保证即使将来改动 reset 也不会在这里翻车 ───
+    # (未列出的 App 本来就默认英文，这里只是把核心工具钉死)
+    # 系统外壳 / 资源管理器 / 设置 / 搜索
+    explorer.exe:
+      ascii_mode: true
+    notepad.exe:
+      ascii_mode: true
+    systemsettings.exe:
+      ascii_mode: true
+    applicationframehost.exe:
+      ascii_mode: true
+    searchapp.exe:
+      ascii_mode: true
+    searchhost.exe:
+      ascii_mode: true
+    # 终端与命令行
+    windowsterminal.exe:
+      ascii_mode: true
+    openconsole.exe:
+      ascii_mode: true
+    conhost.exe:
+      ascii_mode: true
+    cmd.exe:
+      ascii_mode: true
+    powershell.exe:
+      ascii_mode: true
+    pwsh.exe:
+      ascii_mode: true
+    wt.exe:
+      ascii_mode: true
+    # 代码与开发工具
+    code.exe:
+      ascii_mode: true
+    "code - insiders.exe":
+      ascii_mode: true
+    cursor.exe:
+      ascii_mode: true
+    devenv.exe:
+      ascii_mode: true
+    sublime_text.exe:
+      ascii_mode: true
+    idea64.exe:
+      ascii_mode: true
+    pycharm64.exe:
+      ascii_mode: true
+    # 办公与笔记
     winword.exe:
       ascii_mode: true
     excel.exe:
@@ -60,21 +147,20 @@ patch:
       ascii_mode: true
     obsidian.exe:
       ascii_mode: true
-    windowsterminal.exe:
+    # 工具类 (PowerToys / 启动器 / 截图 / 密码管理器等)
+    powertoys.powerlauncher.exe:
       ascii_mode: true
-    cmd.exe:
+    powertoys.quickaccess.exe:
       ascii_mode: true
-    powershell.exe:
+    everything.exe:
       ascii_mode: true
-    pwsh.exe:
+    snipaste.exe:
       ascii_mode: true
-    code.exe:
+    sharex.exe:
       ascii_mode: true
-    code - insiders.exe:
+    keepassxc.exe:
       ascii_mode: true
-    cursor.exe:
-      ascii_mode: true
-    devenv.exe:
+    mstsc.exe:
       ascii_mode: true
 
   # 自定义配色方案：Rheatin Solarized

@@ -6,6 +6,25 @@ patch:
   # 候选词数量
   menu/page_size: 5
 
+  # ⚠️ 关键修复 (Windows/小狼毫 分应用中英切换)
+  # librime 的 switcher/save_options 会把手动切换过的 ascii_mode 持久化到
+  # %APPDATA%\Rime\user.yaml 的 var/option/ascii_mode，并在**每个**新建会话时
+  # 用 Switcher::RestoreSavedOptions() 恢复 —— 这会盖掉 rime_frost 里的
+  # switches/@0/reset，导致「在任意 App 里按一次 Shift 切中文，之后所有 App 都变
+  # 中文」，即看起来完全没有分应用独立。
+  # 因此这里必须把 ascii_mode 从 save_options 中移除，让每个 App 的初始状态
+  # 严格由 weasel.custom.yaml 的 app_options 决定，未列出的 App 一律回落到
+  # reset: 1 (英文)。
+  switcher/save_options:
+    - full_shape
+    - ascii_punct
+    - traditionalization
+    - emoji
+    - chinese_english
+    - chaifen
+    - mars
+    - pin_cand
+
   # 中西文切换逻辑
   ascii_composer:
     good_old_caps_lock: true
