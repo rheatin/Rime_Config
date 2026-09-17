@@ -38,25 +38,25 @@ patch:
       ascii_mode: false
       inline: true
 
-    # ─── 笔记写作与日常办公 (自动中文) ───
+    # ─── 笔记写作与日常办公 (保持英文) ───
     com.apple.Notes:
-      ascii_mode: false
+      ascii_mode: true
     com.apple.mail:
-      ascii_mode: false
+      ascii_mode: true
     com.apple.reminders:
-      ascii_mode: false
+      ascii_mode: true
     com.microsoft.Word:
-      ascii_mode: false
+      ascii_mode: true
     com.microsoft.Excel:
-      ascii_mode: false
+      ascii_mode: true
     com.apple.iWork.Pages:
-      ascii_mode: false
+      ascii_mode: true
     com.apple.iWork.Keynote:
-      ascii_mode: false
+      ascii_mode: true
     notion.id:
-      ascii_mode: false
+      ascii_mode: true
     md.obsidian:
-      ascii_mode: false
+      ascii_mode: true
 
     # ─── 终端与命令行 (强制英文，禁止行内嵌入) ───
     com.apple.Terminal:

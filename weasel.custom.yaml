@@ -26,6 +26,7 @@ patch:
   "style/layout/align_type": center
 
   # 分应用中英文自动切换设定 (默认全局英文，仅特定应用自动切中文)
+  # ─── 仅少数聊天软件与浏览器默认中文 ───
   "app_options/wechat.exe/ascii_mode": false
   "app_options/wxwork.exe/ascii_mode": false
   "app_options/qq.exe/ascii_mode": false
@@ -37,7 +38,12 @@ patch:
   "app_options/msedge.exe/ascii_mode": false
   "app_options/firefox.exe/ascii_mode": false
 
-  # 终端与代码工具 (强制英文)
+  # ─── 笔记办公、终端与代码工具全部默认英文 ───
+  "app_options/winword.exe/ascii_mode": true
+  "app_options/excel.exe/ascii_mode": true
+  "app_options/powerpnt.exe/ascii_mode": true
+  "app_options/notion.exe/ascii_mode": true
+  "app_options/obsidian.exe/ascii_mode": true
   "app_options/windowsterminal.exe/ascii_mode": true
   "app_options/cmd.exe/ascii_mode": true
   "app_options/powershell.exe/ascii_mode": true
