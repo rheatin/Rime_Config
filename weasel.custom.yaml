@@ -25,6 +25,24 @@ patch:
   "style/layout/hilite_padding_y": 4             # 胶囊上下扩展
   "style/layout/align_type": center
 
+  # 分应用中英文自动切换设定 (默认全局英文，仅特定应用自动切中文)
+  "app_options/wechat.exe/ascii_mode": false
+  "app_options/wxwork.exe/ascii_mode": false
+  "app_options/qq.exe/ascii_mode": false
+  "app_options/telegram.exe/ascii_mode": false
+  "app_options/slack.exe/ascii_mode": false
+  "app_options/feishu.exe/ascii_mode": false
+  "app_options/dingtalk.exe/ascii_mode": false
+  "app_options/chrome.exe/ascii_mode": false
+  "app_options/msedge.exe/ascii_mode": false
+  "app_options/firefox.exe/ascii_mode": false
+
+  # 终端与代码工具 (强制英文)
+  "app_options/windowsterminal.exe/ascii_mode": true
+  "app_options/cmd.exe/ascii_mode": true
+  "app_options/powershell.exe/ascii_mode": true
+  "app_options/code.exe/ascii_mode": true
+
   # 自定义配色方案：Rheatin Solarized
   "preset_color_schemes/rheatin_solarized":
     name: "Rheatin Solarized"

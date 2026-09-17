@@ -1,9 +1,88 @@
 patch:
-  ascii_mode: false
+  # 全局默认设定：默认进入英文模式
+  ascii_mode: true
   ascii_punct: false
 
-  # 特定开发/终端应用下的英文模式设定 (按需自动切换)
+  # 分应用中英文自动切换设定 (默认全局英文，仅聊天通讯与浏览器等特定应用自动切中文)
   app_options:
+    # ─── 聊天与通讯软件 (自动中文) ───
+    com.tencent.xinWeChat:
+      ascii_mode: false
+    org.telegram.desktop:
+      ascii_mode: false
+    ru.keepcoder.Telegram:
+      ascii_mode: false
+    com.tinyspeck.slackmacgap:
+      ascii_mode: false
+    com.electron.lark:
+      ascii_mode: false
+    com.alibaba.DingTalkMac:
+      ascii_mode: false
+    com.apple.MobileSMS:
+      ascii_mode: false
+
+    # ─── 网页浏览器 (自动中文，开启行内预编辑) ───
+    com.google.Chrome:
+      ascii_mode: false
+      inline: true
+    com.apple.Safari:
+      ascii_mode: false
+      inline: true
+    com.microsoft.edgemac:
+      ascii_mode: false
+      inline: true
+    company.thebrowser.Browser:
+      ascii_mode: false
+      inline: true
+    org.mozilla.firefox:
+      ascii_mode: false
+      inline: true
+
+    # ─── 笔记写作与日常办公 (自动中文) ───
+    com.apple.Notes:
+      ascii_mode: false
+    com.apple.mail:
+      ascii_mode: false
+    com.apple.reminders:
+      ascii_mode: false
+    com.microsoft.Word:
+      ascii_mode: false
+    com.microsoft.Excel:
+      ascii_mode: false
+    com.apple.iWork.Pages:
+      ascii_mode: false
+    com.apple.iWork.Keynote:
+      ascii_mode: false
+    notion.id:
+      ascii_mode: false
+    md.obsidian:
+      ascii_mode: false
+
+    # ─── 终端与命令行 (强制英文，禁止行内嵌入) ───
+    com.apple.Terminal:
+      ascii_mode: true
+      no_inline: true
+    com.stablyai.orca:
+      ascii_mode: true
+      no_inline: true
+    com.googlecode.iterm2:
+      ascii_mode: true
+      no_inline: true
+    co.zeit.hyper:
+      ascii_mode: true
+      no_inline: true
+
+    # ─── 代码编辑器与开发工具 (强制英文) ───
+    com.microsoft.VSCode:
+      ascii_mode: true
+    com.apple.dt.Xcode:
+      ascii_mode: true
+    com.torusknot.SourceTreeNotMAS:
+      ascii_mode: true
+    org.vim.MacVim:
+      ascii_mode: true
+      no_inline: true
+      vim_mode: true
     com.apple.Spotlight:
       ascii_mode: true
     com.alfredapp.Alfred:
@@ -12,46 +91,6 @@ patch:
       ascii_mode: true
     com.blacktree.Quicksilver:
       ascii_mode: true
-    com.apple.Terminal:
-      ascii_mode: true
-      no_inline: true
-    com.googlecode.iterm2:
-      ascii_mode: true
-      no_inline: true
-    com.stablyai.orca:
-      ascii_mode: true
-      no_inline: true
-    org.vim.MacVim:
-      ascii_mode: true
-      no_inline: true
-      vim_mode: true
-    com.apple.dt.Xcode:
-      ascii_mode: true
-    com.barebones.textwrangler:
-      ascii_mode: true
-    com.macromates.TextMate.preview:
-      ascii_mode: true
-    com.github.atom:
-      ascii_mode: true
-    com.microsoft.VSCode:
-      ascii_mode: true
-    com.sublimetext.2:
-      ascii_mode: true
-    org.gnu.Aquamacs:
-      ascii_mode: true
-    org.gnu.Emacs:
-      ascii_mode: true
-      no_inline: true
-    co.zeit.hyper:
-      ascii_mode: true
-    com.torusknot.SourceTreeNotMAS:
-      ascii_mode: true
-    com.google.Chrome:
-      inline: true
-    com.microsoft.edgemac:
-      inline: true
-    ru.keepcoder.Telegram:
-      inline: true
 
   style:
     color_scheme: rheatin_solarized
