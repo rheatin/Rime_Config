@@ -52,10 +52,16 @@ if (Test-Path (Join-Path $ScriptDir ".git")) {
     Pop-Location
 }
 
+# 2.0 自动执行平台专一化瘦身清理 (移除非本系统配置文件与冗余未使用方案)
+$CleanScript = Join-Path $ScriptDir "clean.ps1"
+if (Test-Path $CleanScript) {
+    & $CleanScript -Quiet
+}
+
 # 2.1 检查并应用从 Git 同步过来的最新配置文件与系统短语
 $ConfigUpdated = $false
 
-Get-ChildItem -Path $ScriptDir -Filter "*.custom.yaml" -File -ErrorAction SilentlyContinue | ForEach-Object {
+Get-ChildItem -Path $ScriptDir -Filter "*.custom.yaml" -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne "squirrel.custom.yaml" } | ForEach-Object {
     $src = $_.FullName
     $dst = Join-Path $RimeDir $_.Name
     if ((-not (Test-Path $dst)) -or ((Get-FileHash $src).Hash -ne (Get-FileHash $dst).Hash)) {

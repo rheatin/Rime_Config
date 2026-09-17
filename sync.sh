@@ -24,6 +24,11 @@ if [ -d "$SCRIPT_DIR/.git" ]; then
   git pull --no-rebase origin main 2>/dev/null || true
 fi
 
+# 1.1 自动执行平台专一化瘦身清理 (移除非本系统配置文件与冗余方案)
+if [ -f "$SCRIPT_DIR/clean.sh" ]; then
+  bash "$SCRIPT_DIR/clean.sh" --quiet 2>/dev/null || true
+fi
+
 # 2. 如果是手动运行，先触发 Squirrel 导出
 if [ "$IS_AUTO" = false ]; then
   echo -e "${BLUE}🔄 2. 正在触发 Rime 导出最新自造词与词频记忆...${NC}"

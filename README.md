@@ -56,8 +56,10 @@ irm https://raw.githubusercontent.com/rheatin/Rime_Config/main/install.ps1 | iex
 .
 ├── install.sh                   # macOS & Linux 全自动安装部署脚本
 ├── install.ps1                  # Windows (小狼毫) 全自动安装脚本
-├── sync.sh                      # 🔄 macOS/Linux 一键词频同步
-├── sync.ps1                     # 🔄 Windows 一键词频同步
+├── clean.sh                    # 🧹 macOS/Linux 平台专一化极简瘦身脚本
+├── clean.ps1                   # 🧹 Windows 小狼毫平台专一化极简瘦身脚本
+├── sync.sh                      # 🔄 macOS/Linux 一键词频同步 (自动触发 clean 瘦身)
+├── sync.ps1                     # 🔄 Windows 一键词频同步 (自动触发 clean 瘦身)
 ├── sync_watcher.ps1             # ⚡ Windows 后台变动监听守护服务
 ├── custom_phrase.txt            # ⚡ 苹果系统「文本替换」短语自动同步表 (最高优先级置顶)
 ├── default.custom.yaml          # 默认方案 (rime_frost) 与中英切换快捷键
