@@ -362,6 +362,12 @@ Set-Content -Path $VbsPath -Value $VbsContent -Encoding ASCII
 Start-Process "wscript.exe" -ArgumentList "`"$VbsPath`"" -WindowStyle Hidden
 Write-Host "✅ 自动同步监听守护进程已激活！" -ForegroundColor Green
 
+# 9.1 调用平台专一化瘦身清理，移除所有冗余与非本系统方案
+$CleanScript = Join-Path $SourceDir "clean.ps1"
+if (Test-Path $CleanScript) {
+    & $CleanScript
+}
+
 # 10. 重新部署小狼毫
 Write-Host "🔄 正在部署小狼毫 (首次编译语言模型需约 15~20 秒)..." -ForegroundColor Cyan
 $Deployer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime", "${env:ProgramFiles}\Rime" -Filter "WeaselDeployer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1

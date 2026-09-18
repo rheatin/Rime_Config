@@ -333,6 +333,11 @@ if [ "$PLATFORM" = "macos" ]; then
   echo -e "${GREEN}✅ 菜单栏同步监听已激活！${NC}"
 fi
 
+# 10.1 调用平台专一化瘦身清理，移除所有冗余与非本系统方案
+if [ -f "$SCRIPT_DIR/clean.sh" ]; then
+  bash "$SCRIPT_DIR/clean.sh"
+fi
+
 # 11. 重新部署与合并词频生效
 echo -e "${BLUE}🔄 触发 Rime 重新部署与词频合并...${NC}"
 if [ "$PLATFORM" = "macos" ]; then
