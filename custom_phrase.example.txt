@@ -1,0 +1,15 @@
+# Rime table
+# coding: utf-8
+#@/db_name	custom_phrase.txt
+#@/db_type	tabledb
+#
+# 常用自定义短语 (系统文本替换示例)
+# 格式：文字<Tab>编码<Tab>权重
+#
+# 此行之后不能写注释
+
+example@domain.com	em	1000
+13800138000	phone	1000
+北京市海淀区中关村南大街	addr	1000
+马上到！	msd	1000
+哈哈哈哈	hhhh	1000
