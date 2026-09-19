@@ -27,6 +27,10 @@ patch:
   "punctuator/symbols":
     __include: symbols_v:/symbols
 
+  # 标点符号定制：中文模式下单双引号直接输出标准英文半角直引号 ' 与 "
+  "punctuator/half_shape/'": "'"
+  'punctuator/half_shape/"': '"'
+
   # 正则识别器：
   # 1. 严格限制计算器仅由大写 C+数字 引导 (如 C1+1)，绝不拦截任何小写 c 开头的正常拼音！
   # 2. 释放 v 给 symbols 符号系统 (如 vfh 符号, vjt 箭头, vsz 数字)

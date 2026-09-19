@@ -25,6 +25,10 @@ patch:
     - mars
     - pin_cand
 
+  # 中文模式下单双引号直接输出标准英文半角直引号 ' 与 "
+  "punctuator/half_shape/'": "'"
+  'punctuator/half_shape/"': '"'
+
   # 中西文切换逻辑
   ascii_composer:
     good_old_caps_lock: true
