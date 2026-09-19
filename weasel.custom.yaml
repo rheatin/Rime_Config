@@ -54,8 +54,6 @@ patch:
       ascii_mode: false
     telegram.exe:
       ascii_mode: false
-    slack.exe:
-      ascii_mode: false
     discord.exe:
       ascii_mode: false
     feishu.exe:
@@ -93,6 +91,9 @@ patch:
 
     # ─── 以下为「显式英文」，保证即使将来改动 reset 也不会在这里翻车 ───
     # (未列出的 App 本来就默认英文，这里只是把核心工具钉死)
+    # 办公沟通以英文为主
+    slack.exe:
+      ascii_mode: true
     # 系统外壳 / 资源管理器 / 设置 / 搜索
     explorer.exe:
       ascii_mode: true

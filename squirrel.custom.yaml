@@ -5,14 +5,12 @@ patch:
 
   # 分应用中英文自动切换设定 (默认全局英文，仅聊天通讯与浏览器等特定应用自动切中文)
   app_options:
-    # ─── 聊天与通讯软件 (自动中文) ───
+    # ─── 聊天与通讯软件 ───
     com.tencent.xinWeChat:
       ascii_mode: false
     org.telegram.desktop:
       ascii_mode: false
     ru.keepcoder.Telegram:
-      ascii_mode: false
-    com.tinyspeck.slackmacgap:
       ascii_mode: false
     com.electron.lark:
       ascii_mode: false
@@ -20,23 +18,21 @@ patch:
       ascii_mode: false
     com.apple.MobileSMS:
       ascii_mode: false
+    # Slack 办公沟通以英文为主
+    com.tinyspeck.slackmacgap:
+      ascii_mode: true
 
-    # ─── 网页浏览器 (自动中文，开启行内预编辑) ───
+    # ─── 网页浏览器 (自动中文，移除容易引发 Chromium 冲突的 inline: true) ───
     com.google.Chrome:
       ascii_mode: false
-      inline: true
     com.apple.Safari:
       ascii_mode: false
-      inline: true
     com.microsoft.edgemac:
       ascii_mode: false
-      inline: true
     company.thebrowser.Browser:
       ascii_mode: false
-      inline: true
     org.mozilla.firefox:
       ascii_mode: false
-      inline: true
 
     # ─── 笔记写作与日常办公 (保持英文) ───
     com.apple.Notes:

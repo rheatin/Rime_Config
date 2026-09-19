@@ -14,3 +14,5 @@ sync/
 # 系统与开发工具垃圾
 .DS_Store
 *.tmp
+installation.yaml
+user.yaml
