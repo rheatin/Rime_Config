@@ -39,7 +39,10 @@ patch:
     - { when: has_menu, accept: minus, send: Page_Up }
     - { when: has_menu, accept: equal, send: Page_Down }
 
-  # 优化滤镜列表：移除 is_in_user_dict (消除*号干扰) 和 corrector (消除多余拼音暴露)
+  # 扩展翻译器：追加 UUID 随机生成功能
+  "engine/translators/@next": lua_translator@*uuid
+
+  # 优化滤镜列表：移除 is_in_user_dict (消除*号干扰) 和 corrector (消除多余拼音暴露)，加入盘古之白
   "engine/filters":
     - reverse_lookup_filter@radical_reverse_lookup
     - lua_filter@*autocap_filter
@@ -47,6 +50,7 @@ patch:
     - lua_filter@*pin_cand_filter
     - lua_filter@*reduce_english_filter
     - lua_filter@*aux_lookup_filter
+    - lua_filter@*cn_en_spacer
     - simplifier@emoji
     - simplifier@chaifen
     - simplifier@chaifen_all
