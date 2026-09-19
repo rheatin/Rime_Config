@@ -1,0 +1,67 @@
+name: Auto Update Upstream Dictionaries
+
+on:
+  schedule:
+    # 每周日 UTC 03:00 (北京时间周日 11:00) 自动执行
+    - cron: '0 3 * * 0'
+  workflow_dispatch: # 支持在 GitHub 页面手动一键触发
+
+jobs:
+  update-upstream:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Git User
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Check and Update MoeType Dictionary
+        run: |
+          echo "🔍 检查 MoeType 萌娘百科最新词库..."
+          LATEST_JSON=$(curl -sL https://api.github.com/repos/suiginko/moetype/releases/latest || true)
+          DOWNLOAD_URL=$(echo "$LATEST_JSON" | grep -o 'https://[^"]*toneless_moe.dict.yaml' | head -n 1 || true)
+          
+          if [ -n "$DOWNLOAD_URL" ]; then
+            echo "📥 发现 MoeType 下载链接: $DOWNLOAD_URL"
+            curl -sL "$DOWNLOAD_URL" -o /tmp/raw_moe.dict.yaml
+            
+            # 格式化 Header 确保与本仓库配置兼容
+            python3 -c "
+            with open('/tmp/raw_moe.dict.yaml', 'r', encoding='utf-8', errors='ignore') as f:
+                lines = f.readlines()
+            
+            out = []
+            header_done = False
+            for line in lines:
+                if not header_done:
+                    if line.startswith('name:'):
+                        out.append('name: moe\n')
+                        continue
+                    if line.startswith('...'):
+                        header_done = True
+                        out.append(line)
+                        continue
+                out.append(line)
+                
+            with open('moe.dict.yaml', 'w', encoding='utf-8') as f:
+                f.writelines(out)
+            "
+          fi
+
+      - name: Commit and Push if Changed
+        run: |
+          git add moe.dict.yaml
+          if git diff --staged --quiet; then
+            echo "✨ 词库已是最新，无变动。"
+          else
+            git commit -m "🍱Sign:[Dict] Auto update MoeType dictionary from upstream release"
+            git push origin main
+          fi

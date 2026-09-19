@@ -251,6 +251,14 @@ Get-ChildItem -Path $SourceDir -Filter "*.dict.yaml" -File -ErrorAction Silently
         Copy-Item -Path $targetFile -Destination $RimeDir -Force
     }
 }
+
+# 复制 Lua 插件目录
+$RepoLua = Join-Path $SourceDir "lua"
+if (Test-Path $RepoLua) {
+    $DstLua = Join-Path $RimeDir "lua"
+    if (-not (Test-Path $DstLua)) { New-Item -ItemType Directory -Path $DstLua -Force | Out-Null }
+    Copy-Item -Path (Join-Path $RepoLua "*") -Destination $DstLua -Recurse -Force
+}
 Write-Host "✅ 个人配置应用成功！" -ForegroundColor Green
 
 # 7. 导入跨平台历史词频快照

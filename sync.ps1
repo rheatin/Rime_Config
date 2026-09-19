@@ -58,8 +58,16 @@ if (Test-Path $CleanScript) {
     & $CleanScript -Quiet
 }
 
-# 2.1 检查并应用从 Git 同步过来的最新配置文件与系统短语
+# 2.1 检查并应用从 Git 同步过来的最新配置文件、Lua 插件与系统短语
 $ConfigUpdated = $false
+
+$RepoLua = Join-Path $ScriptDir "lua"
+if (Test-Path $RepoLua) {
+    $DstLua = Join-Path $RimeDir "lua"
+    if (-not (Test-Path $DstLua)) { New-Item -ItemType Directory -Path $DstLua -Force | Out-Null }
+    Copy-Item -Path (Join-Path $RepoLua "*") -Destination $DstLua -Recurse -Force -ErrorAction SilentlyContinue
+    $ConfigUpdated = $true
+}
 
 Get-ChildItem -Path $ScriptDir -Filter "*.custom.yaml" -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne "squirrel.custom.yaml" } | ForEach-Object {
     $src = $_.FullName

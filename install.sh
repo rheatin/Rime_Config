@@ -273,6 +273,10 @@ echo -e "${BLUE}⚙️  正在应用个人自定义配置与 Rheatin 配色...${
 cp -f "$SCRIPT_DIR"/*.custom.yaml "$RIME_DIR/" 2>/dev/null || true
 cp -f "$SCRIPT_DIR"/*.dict.yaml "$RIME_DIR/" 2>/dev/null || true
 cp -f "$SCRIPT_DIR"/symbols_v.yaml "$RIME_DIR/" 2>/dev/null || true
+if [ -d "$SCRIPT_DIR/lua" ]; then
+  mkdir -p "$RIME_DIR/lua"
+  cp -rf "$SCRIPT_DIR/lua/"* "$RIME_DIR/lua/" 2>/dev/null || true
+fi
 if [ -f "$SCRIPT_DIR/custom_phrase.txt" ]; then
   cp -f "$SCRIPT_DIR/custom_phrase.txt" "$RIME_DIR/"
 fi

@@ -29,6 +29,17 @@ if [ -f "$SCRIPT_DIR/clean.sh" ]; then
   bash "$SCRIPT_DIR/clean.sh" --quiet 2>/dev/null || true
 fi
 
+# 1.2 同步最新的 Lua 扩展与核心配置文件到当前环境
+if [ -d "$SCRIPT_DIR/lua" ]; then
+  mkdir -p "$RIME_DIR/lua"
+  cp -rf "$SCRIPT_DIR/lua/"* "$RIME_DIR/lua/" 2>/dev/null || true
+fi
+cp -f "$SCRIPT_DIR/rime_frost.custom.yaml" "$RIME_DIR/" 2>/dev/null || true
+cp -f "$SCRIPT_DIR/default.custom.yaml" "$RIME_DIR/" 2>/dev/null || true
+if [ "$(uname -s)" = "Darwin" ]; then
+  cp -f "$SCRIPT_DIR/squirrel.custom.yaml" "$RIME_DIR/" 2>/dev/null || true
+fi
+
 # 2. 如果是手动运行，先触发 Squirrel 导出
 if [ "$IS_AUTO" = false ]; then
   echo -e "${BLUE}🔄 2. 正在触发 Rime 导出最新自造词与词频记忆...${NC}"
