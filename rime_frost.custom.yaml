@@ -30,8 +30,10 @@ patch:
   # 正则识别器：
   # 1. 严格限制计算器仅由大写 C+数字 引导 (如 C1+1)，绝不拦截任何小写 c 开头的正常拼音！
   # 2. 释放 v 给 symbols 符号系统 (如 vfh 符号, vjt 箭头, vsz 数字)
+  # 3. 赋予 / 给 Snippets 代码片段引擎 (如 /sh, /git, /mail)
   "recognizer/patterns/calculator": "^C[0-9].*$"
   "recognizer/patterns/punct": "^v([0-9]|10|[A-Za-z]+)$"
+  "recognizer/patterns/snippets": "^/([a-zA-Z0-9_]+)?$"
 
   # 快捷键：分号 ; 快捷选第 2 项，减号 - 向上翻页，等号 = 向下翻页
   "key_binder/bindings":
@@ -39,8 +41,9 @@ patch:
     - { when: has_menu, accept: minus, send: Page_Up }
     - { when: has_menu, accept: equal, send: Page_Down }
 
-  # 扩展翻译器：追加 UUID 随机生成功能
-  "engine/translators/@next": lua_translator@*uuid
+  # 扩展翻译器：追加 UUID 随机生成与 Snippets 片段展开功能
+  "engine/translators/@after_11": lua_translator@*uuid
+  "engine/translators/@after_12": lua_translator@*snippets
 
   # 优化滤镜列表：移除 is_in_user_dict (消除*号干扰) 和 corrector (消除多余拼音暴露)，加入盘古之白
   "engine/filters":
