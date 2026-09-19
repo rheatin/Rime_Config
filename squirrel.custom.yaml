@@ -93,8 +93,8 @@ patch:
       ascii_mode: true
 
   style:
-    color_scheme: rheatin_solarized
-    color_scheme_dark: rheatin_solarized
+    color_scheme: rheatin_solarized_light  # 浅色模式自适应 Rheatin Solarized Light
+    color_scheme_dark: rheatin_solarized   # 深色模式自适应 Rheatin Solarized Dark
 
     text_orientation: horizontal
     candidate_list_layout: linear
@@ -110,6 +110,25 @@ patch:
     font_point: 21
     label_font_point: 13
     comment_font_point: 14
+
+  # 自定义配色方案：Rheatin Solarized Light (浅色暖象牙白)
+  preset_color_schemes/rheatin_solarized_light:
+    name: "Rheatin Solarized Light"
+    author: "Rheatin"
+    candidate_format: "%c\u2005%@\u2005"   # 极简微距排版
+    back_color: 0xeee3f6fd                 # Solarized Base3 柔暖象牙白底色 (0xAABBGGRR)
+    border_color: 0xeee3f6fd
+    text_color: 0x8236d3                   # 内嵌拼音紫红
+    font_face: "SourceHanSerifTC-Heavy, SourceHanSerifSC-Heavy, PingFang SC, Symbols Nerd Font Mono, Symbols Nerd Font, SymbolsNFM, SymbolsNF"
+    font_point: 18
+    label_font_point: 13
+    label_color: 0x837b65                  # 序号清晰色：Solarized Base00
+    candidate_text_color: 0x756e58         # 候选词深墨色：Solarized Base01
+    comment_text_color: 0x98a12a           # 提示注释色：Solarized Cyan
+    hilited_candidate_text_color: 0xffffff # 选中文字纯白
+    hilited_candidate_label_color: 0xffffff# 选中序号纯白
+    hilited_candidate_back_color: 0x8236d3 # 胶囊紫红高亮底色
+    hilited_comment_text_color: 0xe3f6fd
 
   preset_color_schemes/rheatin_solarized:
     name: "Rheatin Solarized"

@@ -1,6 +1,6 @@
 patch:
-  # 基础行为设置 (Windows 小狼毫 Weasel)
-  "style/color_scheme": rheatin_solarized
+  # 基础行为设置 (Windows 小狼毫 Weasel 昼夜自适应)
+  "style/color_scheme": rheatin_solarized_light
   "style/color_scheme_dark": rheatin_solarized
   "style/horizontal": true
   "style/inline_preedit": true
@@ -162,6 +162,22 @@ patch:
       ascii_mode: true
     mstsc.exe:
       ascii_mode: true
+
+  # 自定义配色方案：Rheatin Solarized Light (浅色暖象牙白)
+  "preset_color_schemes/rheatin_solarized_light":
+    name: "Rheatin Solarized Light"
+    author: "Rheatin"
+    label_color: 0x837b65                   # Solarized Base00
+    back_color: 0xe3f6fd                    # Solarized Base3 暖白底色 (0xBBGGRR)
+    border_color: 0xe3f6fd
+    text_color: 0x8236d3                    # 内嵌拼音紫红
+    hilited_text_color: 0x98a12a            # 高亮编码青色
+    candidate_text_color: 0x756e58          # 候选词深墨色 (Base01)
+    comment_text_color: 0x98a12a            # 提示注释青色
+    hilited_candidate_text_color: 0xffffff  # 选中文字纯白
+    hilited_candidate_label_color: 0xffffff # 选中序号纯白
+    hilited_candidate_back_color: 0x8236d3  # 胶囊紫红高亮底色
+    hilited_comment_text_color: 0xe3f6fd
 
   # 自定义配色方案：Rheatin Solarized
   "preset_color_schemes/rheatin_solarized":
