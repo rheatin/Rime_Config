@@ -1,5 +1,16 @@
+# 本地大体积或自动下载的词库
 moe.dict.yaml
 moe.clean.dict.yaml
 moe.dedup.dict.yaml
+
+# 个人隐私脱敏保护 (明文短语与个人词频不入公开仓库)
+custom_phrase.txt
+sync/
+*.key
+*.enc.tmp
+.rime_vault_key
+.vault_key
+
+# 系统与开发工具垃圾
 .DS_Store
 *.tmp

@@ -20,6 +20,13 @@
   - **macOS**：点击状态栏「Sync user data」➔ 自动拉取苹果系统「文本替换」数据库并备份词频 ➔ 静默 Push 到 GitHub 并弹窗通知；
   - **Windows**：点击托盘「用户资料同步」➔ 自动从 GitHub 拉取 Mac 同步的系统短语与词频并重新部署 ➔ 弹气泡通知；
   - **双向互通合并**：Mac 与 Windows 之间的打字习惯和自造词永远保持双向合并与实时互通。
+- 🔒 **AES-256 自动化端到端加密同步 (开源隐私护卫)**：
+  - 用户的真实手机号、邮箱、收件地址（`custom_phrase.txt`）以及打字词频（`sync/`）由 `.gitignore` 严格拦截，**绝不以明文形式上传公开 GitHub**；
+  - 同步脚本在 Push 前通过 AES-256-CBC (PBKDF2) 自动加密为密文包 `vault.enc`，公开仓库只有密文与安全示例 `custom_phrase.example.txt`；
+  - 只有你自己的 Mac / Windows 凭本地密钥（`.vault_key`）静默自动解密生效，兼顾开源分享与极致个人隐私！
+- 📋 **Snippets 常用代码与文本片段引擎**：
+  - 随手敲 `/` 即可触发片段快捷展开（如 `/sh` 展开严谨 Bash 头部、`/git` 展开标准 Commit 前缀、`/curl`、`/mail` 等）；
+  - 支持多行换行 `\n` 与实时候选词描述，可在 `snippets.txt` 中自由增删扩充！
 - ⚡ **系统文本替换（自定义短语）跨平台与绝对置顶**：
   - Mac 同步时全自动读取系统 `TextReplacements.db` 导出为 `custom_phrase.txt` 并推送到仓库；
   - Windows 执行同步时自动接收更新并热重载；
@@ -73,7 +80,9 @@ irm https://raw.githubusercontent.com/rheatin/Rime_Config/main/install.ps1 | iex
 ├── sync.sh                      # 🔄 macOS/Linux 一键词频同步 (自动触发 clean 瘦身)
 ├── sync.ps1                     # 🔄 Windows 一键词频同步 (自动触发 clean 瘦身)
 ├── sync_watcher.ps1             # ⚡ Windows 后台变动监听守护服务
-├── custom_phrase.txt            # ⚡ 苹果系统「文本替换」短语自动同步表 (最高优先级置顶)
+├── custom_phrase.example.txt    # 📋 示例系统短语公开模板 (个人明文由 AES-256 vault.enc 加密)
+├── snippets.txt                 # 📋 常用代码与文本片段定义表 (/sh, /git, /mail 等)
+├── vault.enc                    # 🔒 AES-256 密文同步包 (包含个人私密短语与用户打字词频)
 ├── default.custom.yaml          # 默认方案 (rime_frost) 与中英切换快捷键
 ├── squirrel.custom.yaml         # 鼠须管外观与 Rheatin Solarized 配色 (macOS)
 ├── weasel.custom.yaml           # 小狼毫外观与 Rheatin Solarized 配色 (Windows)

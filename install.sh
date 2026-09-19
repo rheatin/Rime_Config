@@ -279,6 +279,11 @@ if [ -d "$SCRIPT_DIR/lua" ]; then
 fi
 if [ -f "$SCRIPT_DIR/custom_phrase.txt" ]; then
   cp -f "$SCRIPT_DIR/custom_phrase.txt" "$RIME_DIR/"
+elif [ -f "$SCRIPT_DIR/custom_phrase.example.txt" ]; then
+  cp -f "$SCRIPT_DIR/custom_phrase.example.txt" "$RIME_DIR/custom_phrase.txt"
+fi
+if [ -f "$SCRIPT_DIR/snippets.txt" ]; then
+  cp -f "$SCRIPT_DIR/snippets.txt" "$RIME_DIR/"
 fi
 echo -e "${GREEN}✅ 个人配置应用成功！${NC}"
 

@@ -245,11 +245,18 @@ Get-ChildItem -Path $SourceDir -Filter "*.custom.yaml" -File -ErrorAction Silent
 Get-ChildItem -Path $SourceDir -Filter "*.dict.yaml" -File -ErrorAction SilentlyContinue | Copy-Item -Destination $RimeDir -Force
 
 # 复制特定 yaml 与 txt 文件
-@("symbols_v.yaml", "custom_phrase.txt", "weasel.custom.yaml") | ForEach-Object {
+@("symbols_v.yaml", "snippets.txt", "weasel.custom.yaml") | ForEach-Object {
     $targetFile = Join-Path $SourceDir $_
     if (Test-Path $targetFile) {
         Copy-Item -Path $targetFile -Destination $RimeDir -Force
     }
+}
+
+# 复制自定义短语 (优先使用个人短语，其次使用公开示例短语)
+$PhraseFile = Join-Path $SourceDir "custom_phrase.txt"
+if (-not (Test-Path $PhraseFile)) { $PhraseFile = Join-Path $SourceDir "custom_phrase.example.txt" }
+if (Test-Path $PhraseFile) {
+    Copy-Item -Path $PhraseFile -Destination (Join-Path $RimeDir "custom_phrase.txt") -Force
 }
 
 # 复制 Lua 插件目录
