@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Rime 用户词频与自造词一键/自动同步备份脚本 (支持 AES-256 隐私加密保护)
+# Rime 用户词频与自造词一键/自动同步备份脚本 (支持交互式密码与 AES-256 隐私加密)
 # ==============================================================================
 
 set -e
@@ -15,25 +15,82 @@ RIME_DIR="$HOME/Library/Rime"
 [ "$(uname -s)" = "Linux" ] && RIME_DIR="$HOME/.local/share/rime"
 
 IS_AUTO=false
-if [ "$1" = "--auto" ]; then
-  IS_AUTO=true
-fi
+RESET_PASS=false
 
-VAULT_KEY_FILE="$RIME_DIR/.vault_key"
-
-# 0. 检查并初始化本地专属 Vault 隐私密钥 (绝不上传 Git)
-if [ ! -f "$VAULT_KEY_FILE" ] || [ ! -s "$VAULT_KEY_FILE" ]; then
-  python3 -c "
-import secrets
-with open('$VAULT_KEY_FILE', 'w') as f:
-    f.write(secrets.token_hex(16))
-" 2>/dev/null || echo "rime_default_vault_key_2026" > "$VAULT_KEY_FILE"
-  chmod 600 "$VAULT_KEY_FILE" 2>/dev/null || true
-  if [ "$IS_AUTO" = false ]; then
-    echo -e "${YELLOW}🔑 已为你生成专属隐私同步密钥：$VAULT_KEY_FILE${NC}"
-    echo -e "${YELLOW}💡 提示：在 Windows 电脑上同步时，只需将该文件复制到 %APPDATA%\\Rime\\.vault_key 即可解密！${NC}"
+for arg in "$@"; do
+  if [ "$arg" = "--auto" ]; then
+    IS_AUTO=true
+  elif [ "$arg" = "--reset-pass" ]; then
+    RESET_PASS=true
   fi
-fi
+done
+
+# 获取用户同步口令（支持交互输入、系统钥匙串记忆与免输）
+get_vault_pass() {
+  # 1. 优先从环境变量读取
+  if [ -n "$RIME_VAULT_PASS" ]; then
+    echo "$RIME_VAULT_PASS"
+    return 0
+  fi
+
+  # 2. 如果请求重置密码，清除本地缓存
+  if [ "$RESET_PASS" = true ]; then
+    if [ "$(uname -s)" = "Darwin" ]; then
+      security delete-generic-password -s "rime-vault" 2>/dev/null || true
+    fi
+    rm -f "$RIME_DIR/.vault_pass" 2>/dev/null || true
+  else
+    # 尝试从 macOS 原生钥匙串读取
+    if [ "$(uname -s)" = "Darwin" ]; then
+      local KC_PASS
+      KC_PASS=$(security find-generic-password -s "rime-vault" -w 2>/dev/null || true)
+      if [ -n "$KC_PASS" ]; then
+        echo "$KC_PASS"
+        return 0
+      fi
+    fi
+
+    # 尝试从本地受保护文件读取
+    if [ -f "$RIME_DIR/.vault_pass" ] && [ -s "$RIME_DIR/.vault_pass" ]; then
+      cat "$RIME_DIR/.vault_pass"
+      return 0
+    fi
+  fi
+
+  # 3. 后台无感自动模式下，无法弹出交互输入
+  if [ "$IS_AUTO" = true ] || [ ! -t 0 ]; then
+    return 1
+  fi
+
+  # 4. 交互式提示用户输入密码
+  echo "" >&2
+  echo -e "${BLUE}====================================================${NC}" >&2
+  echo -e "${YELLOW}🔒 Rime 隐私数据加密同步 (首次配置 / 验证)${NC}" >&2
+  echo -e "请输入你的同步密码 (Windows 与 Mac 端输入相同密码即可自动互通)：" >&2
+  read -s -p "🔑 请输入密码: " INPUT_PASS >&2
+  echo "" >&2
+  if [ -z "$INPUT_PASS" ]; then
+    echo -e "${YELLOW}⚠️ 未输入密码，本次跳过加密隐私数据同步。${NC}" >&2
+    return 1
+  fi
+
+  # 询问是否记住密码
+  read -p "是否记住该密码（下次同步免输入，将安全存入系统钥匙串）[Y/n]? " REMEMBER >&2
+  REMEMBER=${REMEMBER:-Y}
+  if [[ "$REMEMBER" =~ ^[Yy]$ ]]; then
+    if [ "$(uname -s)" = "Darwin" ]; then
+      security add-generic-password -s "rime-vault" -a "$USER" -w "$INPUT_PASS" -U 2>/dev/null || true
+    fi
+    echo "$INPUT_PASS" > "$RIME_DIR/.vault_pass"
+    chmod 600 "$RIME_DIR/.vault_pass" 2>/dev/null || true
+    echo -e "${GREEN}✅ 密码已安全存储到系统钥匙串，后续同步将全自动免密！${NC}" >&2
+  fi
+  echo -e "${BLUE}====================================================${NC}" >&2
+  echo "" >&2
+
+  echo "$INPUT_PASS"
+  return 0
+}
 
 # 1. 先拉取远程最新变更
 cd "$SCRIPT_DIR"
@@ -41,12 +98,16 @@ if [ -d "$SCRIPT_DIR/.git" ]; then
   git pull --no-rebase origin main 2>/dev/null || true
 fi
 
-# 1.1 自动解密远端同步的隐私数据 (若存在密文包且有本地密钥)
-if [ -f "$SCRIPT_DIR/vault.enc" ] && [ -f "$VAULT_KEY_FILE" ]; then
-  TMP_DEC="/tmp/rime_vault_dec_$$.tar.gz"
-  if openssl enc -d -aes-256-cbc -salt -pbkdf2 -in "$SCRIPT_DIR/vault.enc" -out "$TMP_DEC" -pass file:"$VAULT_KEY_FILE" 2>/dev/null; then
-    tar -xzf "$TMP_DEC" -C "$SCRIPT_DIR" 2>/dev/null || true
-    rm -f "$TMP_DEC"
+# 1.1 自动解密远端同步的隐私数据 (若存在密文包)
+if [ -f "$SCRIPT_DIR/vault.enc" ]; then
+  VAULT_PASS=$(get_vault_pass || true)
+  if [ -n "$VAULT_PASS" ]; then
+    TMP_DEC="/tmp/rime_vault_dec_$$.tar.gz"
+    if echo "$VAULT_PASS" | openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass stdin -in "$SCRIPT_DIR/vault.enc" -out "$TMP_DEC" 2>/dev/null; then
+      tar -xzf "$TMP_DEC" -C "$SCRIPT_DIR" 2>/dev/null || true
+      rm -f "$TMP_DEC"
+      echo -e "${GREEN}🔓 隐私短语与自造词已成功解密同步！${NC}"
+    fi
   fi
 fi
 
@@ -144,11 +205,12 @@ if [ -d "$RIME_DIR/sync" ]; then
 fi
 
 # 将 custom_phrase.txt 与 sync/ 打包加密为 vault.enc
-if [ -f "$VAULT_KEY_FILE" ]; then
+VAULT_PASS=$(get_vault_pass || true)
+if [ -n "$VAULT_PASS" ]; then
   TMP_TAR="/tmp/rime_vault_$$.tar.gz"
   tar -czf "$TMP_TAR" -C "$SCRIPT_DIR" custom_phrase.txt sync 2>/dev/null || true
   if [ -f "$TMP_TAR" ]; then
-    openssl enc -aes-256-cbc -salt -pbkdf2 -in "$TMP_TAR" -out "$SCRIPT_DIR/vault.enc" -pass file:"$VAULT_KEY_FILE" 2>/dev/null || true
+    echo "$VAULT_PASS" | openssl enc -aes-256-cbc -salt -pbkdf2 -pass stdin -in "$TMP_TAR" -out "$SCRIPT_DIR/vault.enc" 2>/dev/null || true
     rm -f "$TMP_TAR"
     echo -e "${GREEN}🔒 隐私短语与自造词已成功通过 AES-256 加密保护 (vault.enc)！${NC}"
   fi
