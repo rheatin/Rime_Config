@@ -573,49 +573,16 @@ if ((Test-Path $VaultEnc) -and $OpenSSL) {
             $Summary = if ($ActionLogs.Count -gt 0) { $ActionLogs -join ', ' } else { '两端内容完全一致' }
             Log-Message "  🧩 [Git 3-Way Merge] 私密片段合并完成: $Summary"
 
-            # 9. 智能双向合并 custom_phrase.txt
+            # 9. 直接应用从云端 (macOS iCloud 文本替换) 同步过来的系统短语
             $RepoPhrase = Join-Path $ScriptDir "custom_phrase.txt"
             $RimePhrase = Join-Path $RimeDir "custom_phrase.txt"
-            $PhraseFiles = @($DecPhrase, $RepoPhrase, $RimePhrase) | Where-Object { Test-Path $_ }
-            
-            $AllEntries = @{}
-            foreach ($pf in $PhraseFiles) {
-                Get-Content $pf -Encoding UTF8 -ErrorAction SilentlyContinue | ForEach-Object {
-                    $line = $_.Trim()
-                    if ($line -and -not $line.StartsWith("#")) {
-                        $parts = $line -split "`t"
-                        if ($parts.Count -ge 2) {
-                            $key = "$($parts[0].Trim())`t$($parts[1].Trim())"
-                            $w = if ($parts.Count -ge 3) { $parts[2].Trim() } else { "1000" }
-                            $AllEntries[$key] = $w
-                        }
-                    }
-                }
+            $BasePhrase = Join-Path $BaseDir "custom_phrase.base.txt"
+            if (Test-Path $DecPhrase) {
+                Copy-Item -Path $DecPhrase -Destination $RepoPhrase -Force
+                Copy-Item -Path $DecPhrase -Destination $RimePhrase -Force
+                Copy-Item -Path $DecPhrase -Destination $BasePhrase -Force
+                Log-Message "  • custom_phrase.txt 镜像同步完成 (来自 iCloud 文本替换)，共计 $((Get-Content $DecPhrase).Count) 行短语！"
             }
-            
-            $Headers = @(
-                "# Rime table",
-                "# coding: utf-8",
-                "#@/db_name`tcustom_phrase.txt",
-                "#@/db_type`ttabledb",
-                "#",
-                "# 跨平台「自定义短语 / 文本替换」双向增量合并表 (全拼 26键)",
-                "# 格式：文字<Tab>编码<Tab>权重",
-                "#",
-                "# 此行之后不能写注释",
-                ""
-            )
-            $MergedLines = [System.Collections.Generic.List[string]]::new()
-            foreach ($h in $Headers) { [void]$MergedLines.Add($h) }
-            foreach ($k in ($AllEntries.Keys | Sort-Object)) {
-                $val = $AllEntries[$k]
-                [void]$MergedLines.Add($k + "`t" + $val)
-            }
-            $MergedContent = $MergedLines -join "`n"
-            [System.IO.File]::WriteAllText($RepoPhrase, $MergedContent, [System.Text.Encoding]::UTF8)
-            [System.IO.File]::WriteAllText($RimePhrase, $MergedContent, [System.Text.Encoding]::UTF8)
-            [System.IO.File]::WriteAllText($BasePhrase, $MergedContent, [System.Text.Encoding]::UTF8)
-            Log-Message "  • custom_phrase.txt 双向合并完成，共计 $($AllEntries.Count) 条短语！"
 
             # 10. 合并词频目录
             if (Test-Path $DecSync) {

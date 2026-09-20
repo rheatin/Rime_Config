@@ -420,40 +420,14 @@ if [ "$IS_AUTO" = false ]; then
   fi
 fi
 
-# 3. 跨平台双向增量合并「自定义短语 (custom_phrase.txt)」与苹果系统「文本替换」
+# 3. 在 macOS 上将苹果系统键盘「文本替换 (iCloud 同步)」导出为 custom_phrase.txt
 APPLE_DB="$HOME/Library/KeyboardServices/TextReplacements.db"
-echo -e "${BLUE}🍎 3. 正在双向增量合并跨平台短语与系统文本替换...${NC}"
+echo -e "${BLUE}🍎 3. 正在读取苹果系统「文本替换 (iCloud)」作为权威词库...${NC}"
 SYNCED_COUNT=$(python3 -c "
 import sqlite3, os
 
-phrase_map = {}
-
-def load_file(fp):
-    if not os.path.exists(fp): return
-    with open(fp, 'r', encoding='utf-8', errors='ignore') as f:
-        in_body = False
-        for line in f:
-            line = line.strip()
-            if not line: continue
-            if line.startswith('# 此行之后不能写注释'):
-                in_body = True
-                continue
-            if line.startswith('#'): continue
-            parts = line.split('\t')
-            if len(parts) >= 2:
-                w_phrase = parts[0].strip()
-                w_sc = parts[1].strip()
-                w_weight = parts[2].strip() if len(parts) >= 3 else '1000'
-                if w_phrase and w_sc:
-                    phrase_map[(w_phrase, w_sc)] = w_weight
-
-# 1. 优先读取已存在的 custom_phrase.txt (保留来自 Windows 端与云端同步的短语)
-load_file('$SCRIPT_DIR/custom_phrase.txt.remote')
-load_file('$SCRIPT_DIR/custom_phrase.txt')
-load_file('$RIME_DIR/custom_phrase.txt')
-
-# 2. 如果存在 macOS 系统文本替换数据库，提取并增量合并
 db_path = '$APPLE_DB'
+phrase_map = {}
 if os.path.exists(db_path):
     try:
         conn = sqlite3.connect(db_path)
@@ -468,14 +442,13 @@ if os.path.exists(db_path):
     except Exception:
         pass
 
-# 3. 输出标准化、去重并按字母排序的短语表
 headers = [
     '# Rime table',
     '# coding: utf-8',
     '#@/db_name\tcustom_phrase.txt',
     '#@/db_type\ttabledb',
     '#',
-    '# 跨平台「自定义短语 / 文本替换」双向增量合并表 (全拼 26键)',
+    '# 苹果系统「文本替换 (iCloud)」全量同步表 (全拼 26键)',
     '# 格式：文字<Tab>编码<Tab>权重',
     '#',
     '# 此行之后不能写注释',
@@ -501,7 +474,7 @@ if os.path.exists('$SCRIPT_DIR/custom_phrase.txt.remote'):
 print(len(phrase_map))
 " 2>/dev/null || echo "0")
 if [ "$SYNCED_COUNT" -gt 0 ] 2>/dev/null; then
-  echo -e "${GREEN}✅ 成功双向合并 $SYNCED_COUNT 条自定义短语（置顶第 1 位）！${NC}"
+  echo -e "${GREEN}✅ 成功同步 $SYNCED_COUNT 条系统短语（与 iCloud 完全对齐，置顶第 1 位）！${NC}"
   if [ -f "/Library/Input Methods/Squirrel.app/Contents/MacOS/Squirrel" ]; then
     "/Library/Input Methods/Squirrel.app/Contents/MacOS/Squirrel" --reload || true
   fi

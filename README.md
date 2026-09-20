@@ -94,19 +94,25 @@ irm https://raw.githubusercontent.com/<YOUR_GITHUB_USERNAME>/Rime_Config/main/in
 
 ## 🔄 双向词频同步与日常维护 / Sync & Maintenance
 
-### 1. 词频与短语一键同步
-- **macOS**：在终端运行 `./sync.sh`，或点击状态栏鼠须管菜单的「同步用户数据」（由 LaunchAgent 自动触发并发送系统横幅通知）；
-- **Windows**：在 PowerShell 运行 `.\sync.ps1`，或右键小狼毫托盘图标选择「用户资料同步」（由后台守护脚本 `sync_watcher.ps1` 自动捕获并弹出任务栏气泡通知；若守护进程未运行，可执行 `powershell -File .\sync_watcher.ps1 -Install` 启动并注册自启）。
-- 同步脚本会自动完成：Git Pull ➔ AES-256 解密 ➔ 合并词频 ➔ 加密打包 ➔ Git Push ➔ 重新部署。
+### 1. 核心架构与短语职责划分
+- **系统文本替换 (`custom_phrase.txt`)**：
+  - **100% 镜像苹果系统「文本替换 (iCloud)」**。
+  - 只要你在 iPhone、iPad 或 Mac 的系统设置中增删文本替换，Mac 端 `sync.sh` 会以 iCloud 数据库为**唯一权威源**自动导出并加密同步；
+  - Windows 端 `sync.ps1` 直接镜像拉取解密应用，**在 iOS/macOS 上删除即全平台删除，彻底终结“旧短语死灰复燃”的问题**！
+- **个人私密片段 (`snippets.custom.yaml`)**：
+  - 用于管理跨平台通用的私密数字快捷指令（如 `/176` 手机、`/3210` 身份证、`/mail` 私人邮箱、`/addr` 地址等）；
+  - 搭载 **Git 3-Way Merge (三路合并模型)**，两端独立增删均可智能融合，互不冲刷！
 
-### 2. 灾难恢复与强制覆盖模式 (Disaster Recovery & Force Mode)
-当您需要完全重置数据，或指定一个备份文件直接强制替换云端时使用：
+### 2. 同步脚本参数全量速查表 (CLI Reference)
 
-| 操作目的 | macOS 指令 | Windows 指令 |
-| :--- | :--- | :--- |
-| **指定外部文件直接覆盖本地并强制推向云端** | `./sync.sh --restore <文件路径>` | `powershell .\sync.ps1 -Restore <文件路径>` |
-| **以当前本地文件为唯一权威，直接覆盖云端** | `./sync.sh --force-push` | `powershell .\sync.ps1 -ForcePush` |
-| **以云端数据为唯一权威，彻底覆盖重置本地** | `./sync.sh --pull-force` | `powershell .\sync.ps1 -PullForce` |
+| 操作目的 | 参数说明 | macOS 指令 | Windows 指令 |
+| :--- | :--- | :--- | :--- |
+| **日常极速同步** | 自动执行 Git 3-Way Merge 智能三路增量合并 | `./sync.sh` | `powershell .\sync.ps1` |
+| **详细排查日志** | 开启详细 Debug 模式，完整打印解密路径、体积与前缀列表 | `./sync.sh -v` | `powershell .\sync.ps1 -v` |
+| **指定文件强推** | 指定一个外部备份文件，完全覆盖本地并强制替换云端 | `./sync.sh --restore <文件路径>` | `powershell .\sync.ps1 -Restore <文件路径>` |
+| **本地权威强推** | 以当前本地为唯一权威，彻底跳过合并直接强推覆盖云端 | `./sync.sh --force-push` | `powershell .\sync.ps1 -ForcePush` |
+| **云端权威重置** | 以云端数据为唯一权威，放弃本地任何修改完全重置本地 | `./sync.sh --pull-force` | `powershell .\sync.ps1 -PullForce` |
+| **重置同步密码** | 清除本地凭据缓存，重新配置同步口令（带二次确认防输错） | `./sync.sh --reset-pass` | `powershell .\sync.ps1 -ResetPass` |
 
 ### 3. 新增软件分应用中英文适配
 由于全局兜底（fallback）默认即为英文，未列出的应用无需配置；仅当您需要将某个应用设为**默认中文**或**终端防冲突模式**时运行：
