@@ -1,7 +1,7 @@
 -- ==============================================================================
 -- 快速文本与代码片段引擎 (Snippets Engine)
 -- 自动加载并合并默认片段库 (snippets.yaml) 与 个人私密片段库 (snippets.custom.yaml)
--- 支持前缀快速展开、原生 | 多行块文本与私密片段高优先覆盖
+-- 支持前缀快速展开、原生 | 多行块文本与私密片段高优先覆盖，完美兼容 Win/Mac 跨平台路径
 -- ==============================================================================
 
 local M = {}
@@ -21,10 +21,26 @@ local function strip_quotes(s)
     return s
 end
 
+-- 跨平台安全文件打开（自动兼容 Windows 反斜杠与 Unix 正斜杠）
+local function open_file_safe(path)
+    if not path or path == "" then return nil end
+    local f = io.open(path, "r")
+    if f then return f end
+
+    -- 尝试 Windows 原生反斜杠路径
+    local win_path = path:gsub("/", "\\")
+    f = io.open(win_path, "r")
+    if f then return f end
+
+    -- 尝试 Unix 纯正斜杠路径
+    local unix_path = path:gsub("\\", "/")
+    return io.open(unix_path, "r")
+end
+
 -- 解析 YAML 片段文件
 local function load_yaml_snippets(filepath, default_quality)
     local map = {}
-    local file = io.open(filepath, "r")
+    local file = open_file_safe(filepath)
     if not file then return map end
 
     local cur_trigger = nil
@@ -137,6 +153,10 @@ end
 
 function M.init(env)
     local user_dir = rime_api and rime_api.get_user_data_dir and rime_api.get_user_data_dir() or ""
+    if user_dir ~= "" then
+        user_dir = user_dir:gsub("[/\\]+$", "")
+    end
+
     local base_path = (user_dir ~= "" and (user_dir .. "/snippets.yaml")) or "snippets.yaml"
     local custom_path = (user_dir ~= "" and (user_dir .. "/snippets.custom.yaml")) or "snippets.custom.yaml"
 
