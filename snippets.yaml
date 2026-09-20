@@ -194,8 +194,8 @@
 
 # ─── 4. 职场邮件与高效沟通 (Work & Communication) ────────────────────────────
 /mail:
-  - text: 125110985@qq.com
-    desc: 常用 QQ 邮箱
+  - text: your_email@example.com
+    desc: 个人邮箱模板 (可在 snippets.custom.yaml 中覆盖为真实邮箱)
 
 /sign:
   - text: |
