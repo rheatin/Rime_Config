@@ -52,9 +52,8 @@ $RedundantPatterns = @(
     # 辅助码拆分方案
     "rime_frost_aux*",
 
-    # 笔画与部首反查方案
+    # 笔画反查方案 (部件拆字 radical_pinyin 保留给 u 拆字模式)
     "stroke*",
-    "radical_pinyin*",
 
     # 移动端九宫格方案残留
     "t9.*",
