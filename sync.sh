@@ -134,11 +134,76 @@ if [ -f "$SCRIPT_DIR/vault.enc" ]; then
   if [ -n "$VAULT_PASS" ]; then
     export RIME_VAULT_PASS="$VAULT_PASS"
     TMP_DEC="/tmp/rime_vault_dec_$$.tar.gz"
+    TMP_UNPACK_DIR="/tmp/rime_vault_unpack_$$"
+    mkdir -p "$TMP_UNPACK_DIR"
     if openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass env:RIME_VAULT_PASS -in "$SCRIPT_DIR/vault.enc" -out "$TMP_DEC" 2>/dev/null || \
        openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass "pass:$VAULT_PASS" -in "$SCRIPT_DIR/vault.enc" -out "$TMP_DEC" 2>/dev/null || \
        echo "$VAULT_PASS" | openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass stdin -in "$SCRIPT_DIR/vault.enc" -out "$TMP_DEC" 2>/dev/null; then
-      tar -xzf "$TMP_DEC" -C "$SCRIPT_DIR" 2>/dev/null || true
+      tar -xzf "$TMP_DEC" -C "$TMP_UNPACK_DIR" 2>/dev/null || true
       rm -f "$TMP_DEC"
+
+      # 双向智能合并 snippets.custom.yaml (融合本地修改与远端解密内容)
+      python3 -c "
+import os
+def merge_yaml(files):
+    blocks = {}
+    order = []
+    for fp in files:
+        if not os.path.exists(fp): continue
+        cur_trigger = None
+        cur_lines = []
+        with open(fp, 'r', encoding='utf-8', errors='ignore') as f:
+            for line in f:
+                raw = line.rstrip('\r\n')
+                s = raw.strip()
+                if s.startswith('/') and ':' in s:
+                    if cur_trigger and cur_lines:
+                        blocks[cur_trigger] = cur_lines
+                    cur_trigger = s.split(':')[0].strip('\"\'')
+                    if cur_trigger not in order:
+                        order.append(cur_trigger)
+                    cur_lines = [raw]
+                elif cur_trigger:
+                    cur_lines.append(raw)
+            if cur_trigger and cur_lines:
+                blocks[cur_trigger] = cur_lines
+
+    if not order: return
+    header = [
+        '# ==============================================================================',
+        '# 🔒 个人私密代码与文本片段 (snippets.custom.yaml)',
+        '# 说明：此文件包含个人敏感手机号、身份证、真实邮箱、地址等。',
+        '# 受 .gitignore 保护绝不以明文提交 GitHub，由 AES-256 (vault.enc) 加密跨平台同步。',
+        '# ==============================================================================',
+        ''
+    ]
+    res = list(header)
+    for t in order:
+        res.extend(blocks[t])
+        res.append('')
+    content = '\n'.join(res) + '\n'
+    for p in ['$SCRIPT_DIR/snippets.custom.yaml', '$RIME_DIR/snippets.custom.yaml']:
+        if os.path.isdir(os.path.dirname(p)):
+            with open(p, 'w', encoding='utf-8') as f:
+                f.write(content)
+
+merge_yaml([
+    '$SCRIPT_DIR/snippets.custom.yaml',
+    '$RIME_DIR/snippets.custom.yaml',
+    '$TMP_UNPACK_DIR/snippets.custom.yaml'
+])
+" 2>/dev/null || true
+
+      # 复制同步过来的 sync 词频与短语
+      if [ -d "$TMP_UNPACK_DIR/sync" ]; then
+        mkdir -p "$SCRIPT_DIR/sync" "$RIME_DIR/sync"
+        cp -rf "$TMP_UNPACK_DIR/sync/"* "$SCRIPT_DIR/sync/" 2>/dev/null || true
+        cp -rf "$TMP_UNPACK_DIR/sync/"* "$RIME_DIR/sync/" 2>/dev/null || true
+      fi
+      if [ -f "$TMP_UNPACK_DIR/custom_phrase.txt" ]; then
+        cp -f "$TMP_UNPACK_DIR/custom_phrase.txt" "$SCRIPT_DIR/custom_phrase.txt.remote" 2>/dev/null || true
+      fi
+      rm -rf "$TMP_UNPACK_DIR"
       echo -e "${GREEN}🔓 隐私短语与自造词已成功解密同步！${NC}"
     fi
   fi

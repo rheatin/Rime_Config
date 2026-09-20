@@ -42,7 +42,61 @@ if ($Cmd) {
     }
 }
 
-# 获取同步密码 (支持交互式输入、Windows DPAPI 本地安全保护记忆与免输)
+function Merge-SnippetYaml {
+    param([string[]]$FilePaths, [string[]]$OutPaths)
+    
+    $Blocks = @{}
+    $Order = [System.Collections.Generic.List[string]]::new()
+    
+    foreach ($fp in $FilePaths) {
+        if (-not (Test-Path $fp)) { continue }
+        $curTrigger = $null
+        $curLines = [System.Collections.Generic.List[string]]::new()
+        
+        Get-Content $fp -Encoding UTF8 -ErrorAction SilentlyContinue | ForEach-Object {
+            $raw = $_
+            $s = $raw.Trim()
+            if ($s.StartsWith("/") -and ($s -match '^"?(/\w+)"?:\s*$')) {
+                if ($curTrigger -and $curLines.Count -gt 0) {
+                    $Blocks[$curTrigger] = $curLines.ToArray()
+                }
+                $curTrigger = $Matches[1]
+                if (-not $Order.Contains($curTrigger)) { $Order.Add($curTrigger) }
+                $curLines = [System.Collections.Generic.List[string]]::new()
+                $curLines.Add($raw)
+            } elseif ($curTrigger) {
+                $curLines.Add($raw)
+            }
+        }
+        if ($curTrigger -and $curLines.Count -gt 0) {
+            $Blocks[$curTrigger] = $curLines.ToArray()
+        }
+    }
+    
+    if ($Order.Count -eq 0) { return }
+    
+    $Header = @(
+        "# ==============================================================================",
+        "# 🔒 个人私密代码与文本片段 (snippets.custom.yaml)",
+        "# 说明：此文件包含个人敏感手机号、身份证、真实邮箱、地址等。",
+        "# 受 .gitignore 保护绝不以明文提交 GitHub，由 AES-256 (vault.enc) 加密跨平台同步。",
+        "# ==============================================================================",
+        ""
+    )
+    $Lines = [System.Collections.Generic.List[string]]::new($Header)
+    foreach ($t in $Order) {
+        if ($Blocks.ContainsKey($t)) {
+            foreach ($l in $Blocks[$t]) { [void]$Lines.Add($l) }
+            [void]$Lines.Add("")
+        }
+    }
+    $MergedText = $Lines -join "`n"
+    foreach ($op in $OutPaths) {
+        $parent = Split-Path -Parent $op
+        if (-not (Test-Path $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+        [System.IO.File]::WriteAllText($op, $MergedText, [System.Text.Encoding]::UTF8)
+    }
+}
 function Get-VaultPass {
     param([switch]$Auto, [switch]$ResetPass)
 
@@ -174,6 +228,10 @@ if ((Test-Path $VaultEnc) -and $OpenSSL) {
     if ($VaultPass) {
         Log-Message "正在解密隐私数据包 (vault.enc)..."
         $TempTar = Join-Path $env:TEMP "rime_vault_dec.tar.gz"
+        $TempUnpackDir = Join-Path $env:TEMP "rime_vault_unpack"
+        if (Test-Path $TempUnpackDir) { Remove-Item -Recurse -Force $TempUnpackDir -ErrorAction SilentlyContinue }
+        New-Item -ItemType Directory -Path $TempUnpackDir -Force | Out-Null
+
         try {
             $env:RIME_VAULT_PASS = $VaultPass
             & $OpenSSL enc -d -aes-256-cbc -salt -pbkdf2 -pass env:RIME_VAULT_PASS -in $VaultEnc -out $TempTar 2>$null
@@ -184,8 +242,23 @@ if ((Test-Path $VaultEnc) -and $OpenSSL) {
                 $VaultPass | & $OpenSSL enc -d -aes-256-cbc -salt -pbkdf2 -pass stdin -in $VaultEnc -out $TempTar 2>$null
             }
             if (Test-Path $TempTar) {
-                tar -xzf $TempTar -C $ScriptDir 2>$null
+                tar -xzf $TempTar -C $TempUnpackDir 2>$null
                 Remove-Item -Path $TempTar -Force -ErrorAction SilentlyContinue
+
+                # 智能双向合并 snippets.custom.yaml (融合本地修改与远端解密)
+                $RepoCustom = Join-Path $ScriptDir "snippets.custom.yaml"
+                $RimeCustom = Join-Path $RimeDir "snippets.custom.yaml"
+                $DecCustom = Join-Path $TempUnpackDir "snippets.custom.yaml"
+                Merge-SnippetYaml -FilePaths @($RepoCustom, $RimeCustom, $DecCustom) -OutPaths @($RepoCustom, $RimeCustom)
+
+                # 合并词频目录
+                $DecSync = Join-Path $TempUnpackDir "sync"
+                if (Test-Path $DecSync) {
+                    Copy-Item -Path (Join-Path $DecSync "*") -Destination (Join-Path $ScriptDir "sync") -Recurse -Force -ErrorAction SilentlyContinue
+                    Copy-Item -Path (Join-Path $DecSync "*") -Destination (Join-Path $RimeDir "sync") -Recurse -Force -ErrorAction SilentlyContinue
+                }
+
+                Remove-Item -Recurse -Force $TempUnpackDir -ErrorAction SilentlyContinue
                 Log-Message "✅ 隐私短语与词频解密提取成功！"
             }
         } catch {}
@@ -209,16 +282,6 @@ if (Test-Path $RepoSnippetsYaml) {
     if ((-not (Test-Path $RimeSnippetsYaml)) -or ((Get-FileHash $RepoSnippetsYaml).Hash -ne (Get-FileHash $RimeSnippetsYaml).Hash)) {
         Log-Message "检测到代码片段库更新: snippets.yaml，正在应用..."
         Copy-Item -Path $RepoSnippetsYaml -Destination $RimeSnippetsYaml -Force
-        $ConfigUpdated = $true
-    }
-}
-
-$RepoSnippetsCustom = Join-Path $ScriptDir "snippets.custom.yaml"
-$RimeSnippetsCustom = Join-Path $RimeDir "snippets.custom.yaml"
-if (Test-Path $RepoSnippetsCustom) {
-    if ((-not (Test-Path $RimeSnippetsCustom)) -or ((Get-FileHash $RepoSnippetsCustom).Hash -ne (Get-FileHash $RimeSnippetsCustom).Hash)) {
-        Log-Message "检测到个人私密代码片段库更新: snippets.custom.yaml，正在应用..."
-        Copy-Item -Path $RepoSnippetsCustom -Destination $RimeSnippetsCustom -Force
         $ConfigUpdated = $true
     }
 }
