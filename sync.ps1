@@ -131,9 +131,9 @@ function Invoke-ThreeWaySnippetMerge {
     $LocalData = Parse-Blocks $LocalPath
     $RemoteData = Parse-Blocks $RemotePath
 
-    # 如果尚无 Base 历史快照（首次运行三路模型），以远端为基准
+    # 如果尚无 Base 历史快照（首次运行三路模型），以拉取前的本地为初始基准，让远端新改动顺利采纳
     if ($BaseData.Order.Count -eq 0) {
-        $BaseData = $RemoteData
+        $BaseData = $LocalData
     }
 
     $AllTriggers = [System.Collections.Generic.List[string]]::new()
@@ -184,8 +184,10 @@ function Invoke-ThreeWaySnippetMerge {
                 $MergedBlocks[$t] = $LocalData.Blocks[$t]; [void]$MergedOrder.Add($t)
                 [void]$ActionLogs.Add("~采用本地:$t")
             } else {
-                $MergedBlocks[$t] = $LocalData.Blocks[$t]; [void]$MergedOrder.Add($t)
-                [void]$ActionLogs.Add("!冲突采用本地:$t")
+                # 双方均有修改冲突，优先采纳远端带来的新条目
+                $MergedBlocks[$t] = $RemoteData.Blocks[$t]
+                [void]$MergedOrder.Add($t)
+                [void]$ActionLogs.Add("!冲突采用远端:$t")
             }
         }
     }

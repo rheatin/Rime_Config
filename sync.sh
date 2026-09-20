@@ -303,7 +303,9 @@ base_b, base_o = parse_snippets(base_file)
 loc_b, loc_o = parse_snippets(local_file)
 rem_b, rem_o = parse_snippets(remote_file)
 
-if not base_o and rem_o:
+if not base_o and loc_o:
+    base_b, base_o = loc_b, loc_o
+elif not base_o and rem_o:
     base_b, base_o = rem_b, rem_o
 
 all_triggers = []
@@ -340,7 +342,7 @@ for t in all_triggers:
         elif r_val == b_val:
             merged_b[t] = loc_b[t]; merged_o.append(t); changes.append(f'~采用本地:{t}')
         else:
-            merged_b[t] = loc_b[t]; merged_o.append(t); changes.append(f'!冲突采用当前端:{t}')
+            merged_b[t] = rem_b[t]; merged_o.append(t); changes.append(f'!冲突采用远端:{t}')
 
 header = [
     '# ==============================================================================',
