@@ -99,12 +99,21 @@ irm https://raw.githubusercontent.com/<YOUR_GITHUB_USERNAME>/Rime_Config/main/in
 - **Windows**：在 PowerShell 运行 `.\sync.ps1`，或右键小狼毫托盘图标选择「用户资料同步」（由后台守护脚本 `sync_watcher.ps1` 自动捕获并弹出任务栏气泡通知；若守护进程未运行，可执行 `powershell -File .\sync_watcher.ps1 -Install` 启动并注册自启）。
 - 同步脚本会自动完成：Git Pull ➔ AES-256 解密 ➔ 合并词频 ➔ 加密打包 ➔ Git Push ➔ 重新部署。
 
-### 2. 新增软件分应用中英文适配
+### 2. 灾难恢复与强制覆盖模式 (Disaster Recovery & Force Mode)
+当您需要完全重置数据，或指定一个备份文件直接强制替换云端时使用：
+
+| 操作目的 | macOS 指令 | Windows 指令 |
+| :--- | :--- | :--- |
+| **指定外部文件直接覆盖本地并强制推向云端** | `./sync.sh --restore <文件路径>` | `powershell .\sync.ps1 -Restore <文件路径>` |
+| **以当前本地文件为唯一权威，直接覆盖云端** | `./sync.sh --force-push` | `powershell .\sync.ps1 -ForcePush` |
+| **以云端数据为唯一权威，彻底覆盖重置本地** | `./sync.sh --pull-force` | `powershell .\sync.ps1 -PullForce` |
+
+### 3. 新增软件分应用中英文适配
 由于全局兜底（fallback）默认即为英文，未列出的应用无需配置；仅当您需要将某个应用设为**默认中文**或**终端防冲突模式**时运行：
 - **macOS**：运行 `./tools/New-AppOptions.sh -r`（仅扫描运行中），或使用 `-a` 一键安全合并进 `squirrel.custom.yaml` 并自动重载；
 - **Windows**：运行 `pwsh -File tools\New-AppOptions.ps1 -RunningOnly`。
 
-### 3. 自定义代码与私密短语 (Snippets)
+### 4. 自定义代码与私密短语 (Snippets)
 - **公共通用片段**：编辑根目录下的 `snippets.yaml`，公开分享给所有设备；
 - **个人私密片段 (手机号/身份证/真实邮箱/收件地址)**：
   编辑 `snippets.custom.yaml`（参考公开模板 `snippets.custom.example.yaml`）。

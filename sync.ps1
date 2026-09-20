@@ -5,7 +5,10 @@
 
 param(
     [switch]$Auto,
-    [switch]$ResetPass
+    [switch]$ResetPass,
+    [switch]$ForcePush,
+    [switch]$PullForce,
+    [string]$Restore
 )
 
 $ErrorActionPreference = "Continue"
@@ -274,8 +277,32 @@ function Get-VaultPass {
     return $PlainPass
 }
 
+# 1. 检查是否为指定文件恢复模式
+if ($Restore) {
+    if (-not (Test-Path $Restore)) {
+        Log-Message "❌ 错误：指定的恢复文件不存在: $Restore"
+        return
+    }
+    Log-Message "🚨 恢复模式：正在使用指定文件覆盖本地并强制推送到云端: $Restore"
+    $BaseDir = Join-Path $RimeDir ".vault_base"
+    if (-not (Test-Path $BaseDir)) { New-Item -ItemType Directory -Path $BaseDir -Force | Out-Null }
+    
+    if ($Restore -match '\.ya?ml$') {
+        Copy-Item -Path $Restore -Destination (Join-Path $ScriptDir "snippets.custom.yaml") -Force
+        Copy-Item -Path $Restore -Destination (Join-Path $RimeDir "snippets.custom.yaml") -Force
+        Copy-Item -Path $Restore -Destination (Join-Path $BaseDir "snippets.custom.base.yaml") -Force
+        Log-Message "✅ 已将指定文件设置为 snippets.custom.yaml 权威版本！"
+    } elseif ($Restore -match '\.txt$') {
+        Copy-Item -Path $Restore -Destination (Join-Path $ScriptDir "custom_phrase.txt") -Force
+        Copy-Item -Path $Restore -Destination (Join-Path $RimeDir "custom_phrase.txt") -Force
+        Copy-Item -Path $Restore -Destination (Join-Path $BaseDir "custom_phrase.base.txt") -Force
+        Log-Message "✅ 已将指定文件设置为 custom_phrase.txt 权威版本！"
+    }
+    $ForcePush = $true
+}
+
 # 1. 如果是手动运行，先触发 WeaselDeployer
-if (-not $Auto) {
+if (-not $Auto -and -not $ForcePush) {
     Log-Message "手动触发模式：正在调用小狼毫导出..."
     Invoke-WeaselCommand "/sync"
 } else {
@@ -299,6 +326,69 @@ if (Test-Path (Join-Path $ScriptDir ".git")) {
         if ($PullOut) { Log-Message "Git Pull: $($PullOut.Trim())" }
     } catch {}
     Pop-Location
+}
+
+# 如果是 -ForcePush (强制以本地为准覆盖云端)，跳过远端合并，直接打包推送到云端
+if ($ForcePush) {
+    Log-Message "🚨 强制推流模式：以当前本地文件为唯一权威，跳过合并直接覆盖云端！"
+    $BaseDir = Join-Path $RimeDir ".vault_base"
+    if (-not (Test-Path $BaseDir)) { New-Item -ItemType Directory -Path $BaseDir -Force | Out-Null }
+    
+    $RepoCustom = Join-Path $ScriptDir "snippets.custom.yaml"
+    $RimeCustom = Join-Path $RimeDir "snippets.custom.yaml"
+    $BaseCustom = Join-Path $BaseDir "snippets.custom.base.yaml"
+    if (Test-Path $RimeCustom) {
+        Copy-Item -Path $RimeCustom -Destination $RepoCustom -Force
+        Copy-Item -Path $RimeCustom -Destination $BaseCustom -Force
+    }
+
+    $RepoPhrase = Join-Path $ScriptDir "custom_phrase.txt"
+    $RimePhrase = Join-Path $RimeDir "custom_phrase.txt"
+    $BasePhrase = Join-Path $BaseDir "custom_phrase.base.txt"
+    if (Test-Path $RimePhrase) {
+        Copy-Item -Path $RimePhrase -Destination $RepoPhrase -Force
+        Copy-Item -Path $RimePhrase -Destination $BasePhrase -Force
+    }
+
+    $SourceSync = Join-Path $RimeDir "sync"
+    $TargetSync = Join-Path $ScriptDir "sync"
+    if (Test-Path $SourceSync) {
+        if (-not (Test-Path $TargetSync)) { New-Item -ItemType Directory -Path $TargetSync -Force | Out-Null }
+        Copy-Item -Path (Join-Path $SourceSync "*") -Destination $TargetSync -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    if ($OpenSSL) {
+        $VaultPass = Get-VaultPass -Auto:$Auto -ResetPass:$ResetPass
+        if ($VaultPass) {
+            $TempTar = Join-Path $env:TEMP "rime_vault.tar.gz"
+            try {
+                Push-Location $ScriptDir
+                tar -czf $TempTar custom_phrase.txt snippets.custom.yaml sync 2>$null
+                if (Test-Path $TempTar) {
+                    $env:RIME_VAULT_PASS = $VaultPass
+                    & $OpenSSL enc -aes-256-cbc -salt -pbkdf2 -pass env:RIME_VAULT_PASS -in $TempTar -out $VaultEnc 2>$null
+                    Remove-Item -Path $TempTar -Force -ErrorAction SilentlyContinue
+                    Log-Message "🔒 权威版本已加密打包 (vault.enc)！"
+                }
+                Pop-Location
+            } catch {}
+        }
+    }
+
+    Push-Location $ScriptDir
+    git add vault.enc custom_phrase.example.txt snippets.yaml snippets.custom.example.yaml 2>$null
+    $prevEAP = $ErrorActionPreference
+    $ErrorActionPreference = "SilentlyContinue"
+    $CommitOut = (& git commit -m "restore(windows): 强制恢复并覆盖云端私密数据 $DateStr" 2>&1) | Out-String
+    $PushOut = (& git push origin main 2>&1) | Out-String
+    $ErrorActionPreference = $prevEAP
+    Pop-Location
+
+    Log-Message "正在触发小狼毫重新部署以使最新配置与短语生效..."
+    Invoke-WeaselCommand "/deploy"
+    Log-Message "🎉 本地权威版本已成功强制推送到云端！"
+    Show-Balloon -Title "Rime 词频同步" -Message "🎉 本地权威版本已成功强制推送到云端！"
+    return
 }
 
 # 2.0 自动解密远端同步的隐私数据包 (vault.enc)
@@ -342,6 +432,35 @@ if ((Test-Path $VaultEnc) -and $OpenSSL) {
             if (Test-Path $DecCustom) { Log-Message "  • 个人私密片段: snippets.custom.yaml ($((Get-Item $DecCustom).Length) 字节)" }
             if (Test-Path $DecPhrase) { Log-Message "  • 系统自定义短语: custom_phrase.txt ($((Get-Content $DecPhrase).Count) 行)" }
             if (Test-Path $DecSync) { Log-Message "  • 跨平台词频目录: sync/ ($((Get-ChildItem $DecSync).Name -join ', '))" }
+
+            # 如果是 -PullForce (强制从云端重置覆盖本地)，跳过三路合并直接重置本地
+            if ($PullForce) {
+                Log-Message "🚨 强制重置模式：正在以云端数据完全重置本地环境..."
+                $BaseDir = Join-Path $RimeDir ".vault_base"
+                if (-not (Test-Path $BaseDir)) { New-Item -ItemType Directory -Path $BaseDir -Force | Out-Null }
+
+                if (Test-Path $DecCustom) {
+                    Copy-Item -Path $DecCustom -Destination (Join-Path $ScriptDir "snippets.custom.yaml") -Force
+                    Copy-Item -Path $DecCustom -Destination (Join-Path $RimeDir "snippets.custom.yaml") -Force
+                    Copy-Item -Path $DecCustom -Destination (Join-Path $BaseDir "snippets.custom.base.yaml") -Force
+                }
+                if (Test-Path $DecPhrase) {
+                    Copy-Item -Path $DecPhrase -Destination (Join-Path $ScriptDir "custom_phrase.txt") -Force
+                    Copy-Item -Path $DecPhrase -Destination (Join-Path $RimeDir "custom_phrase.txt") -Force
+                    Copy-Item -Path $DecPhrase -Destination (Join-Path $BaseDir "custom_phrase.base.txt") -Force
+                }
+                if (Test-Path $DecSync) {
+                    Copy-Item -Path (Join-Path $DecSync "*") -Destination (Join-Path $ScriptDir "sync") -Recurse -Force -ErrorAction SilentlyContinue
+                    Copy-Item -Path (Join-Path $DecSync "*") -Destination (Join-Path $RimeDir "sync") -Recurse -Force -ErrorAction SilentlyContinue
+                }
+                Remove-Item -Recurse -Force $TempUnpackDir -ErrorAction SilentlyContinue
+
+                Log-Message "正在触发小狼毫重新部署以使最新配置与短语生效..."
+                Invoke-WeaselCommand "/deploy"
+                Log-Message "🎉 本地已成功强制以云端权威数据完全重置！"
+                Show-Balloon -Title "Rime 词频同步" -Message "🎉 本地已成功强制以云端权威数据完全重置！"
+                return
+            }
 
             # 智能 Git 3-Way Merge 增量合并 snippets.custom.yaml
             $BaseDir = Join-Path $RimeDir ".vault_base"

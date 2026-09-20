@@ -16,13 +16,46 @@ RIME_DIR="$HOME/Library/Rime"
 
 IS_AUTO=false
 RESET_PASS=false
+FORCE_PUSH=false
+PULL_FORCE=false
+RESTORE_FILE=""
 
-for arg in "$@"; do
-  if [ "$arg" = "--auto" ]; then
-    IS_AUTO=true
-  elif [ "$arg" = "--reset-pass" ]; then
-    RESET_PASS=true
-  fi
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --auto)
+      IS_AUTO=true
+      shift
+      ;;
+    --reset-pass)
+      RESET_PASS=true
+      shift
+      ;;
+    --force-push|--restore-to-cloud)
+      FORCE_PUSH=true
+      shift
+      ;;
+    --pull-force|--restore-from-cloud)
+      PULL_FORCE=true
+      shift
+      ;;
+    --restore)
+      RESTORE_FILE="$2"
+      FORCE_PUSH=true
+      shift 2
+      ;;
+    -h|--help)
+      echo "用法: ./sync.sh [选项]"
+      echo "  (无参数)               常规日常同步 (自动 Git 三路合并)"
+      echo "  --restore <文件路径>   指定一个 YAML 或 TXT 文件，完全覆盖本地并强制推送到云端"
+      echo "  --force-push           以当前本地内容为绝对权威，跳过合并直接覆盖云端"
+      echo "  --pull-force           以云端版本为绝对权威，放弃本地修改完全重置本地"
+      echo "  --reset-pass           重置本地存储的加密同步密码"
+      exit 0
+      ;;
+    *)
+      shift
+      ;;
+  esac
 done
 
 # 发送系统通知 (macOS / Linux)
@@ -122,6 +155,61 @@ get_vault_pass() {
   return 0
 }
 
+# 0. 恢复与强制推流模式处理 (必须在 git pull 和远端解密之前执行)
+if [ -n "$RESTORE_FILE" ]; then
+  if [ ! -f "$RESTORE_FILE" ]; then
+    echo -e "${RED}❌ 错误：指定的恢复文件不存在: $RESTORE_FILE${NC}"
+    exit 1
+  fi
+  echo -e "${YELLOW}🚨 恢复模式：正在使用指定文件覆盖本地并强制推送到云端: $RESTORE_FILE${NC}"
+  mkdir -p "$RIME_DIR/.vault_base"
+  if [[ "$RESTORE_FILE" == *.yaml ]] || [[ "$RESTORE_FILE" == *.yml ]]; then
+    cp -f "$RESTORE_FILE" "$SCRIPT_DIR/snippets.custom.yaml"
+    cp -f "$RESTORE_FILE" "$RIME_DIR/snippets.custom.yaml"
+    cp -f "$RESTORE_FILE" "$RIME_DIR/.vault_base/snippets.custom.base.yaml"
+    echo -e "${GREEN}✅ 已将指定文件加载为 snippets.custom.yaml 权威版本！${NC}"
+  elif [[ "$RESTORE_FILE" == *.txt ]]; then
+    cp -f "$RESTORE_FILE" "$SCRIPT_DIR/custom_phrase.txt"
+    cp -f "$RESTORE_FILE" "$RIME_DIR/custom_phrase.txt"
+    cp -f "$RESTORE_FILE" "$RIME_DIR/.vault_base/custom_phrase.base.txt"
+    echo -e "${GREEN}✅ 已将指定文件加载为 custom_phrase.txt 权威版本！${NC}"
+  fi
+  FORCE_PUSH=true
+fi
+
+if [ "$FORCE_PUSH" = true ]; then
+  echo -e "${YELLOW}🚨 强制推流模式：以当前本地文件为唯一权威，跳过合并直接覆盖云端！${NC}"
+  mkdir -p "$RIME_DIR/.vault_base"
+  [ -f "$RIME_DIR/snippets.custom.yaml" ] && cp -f "$RIME_DIR/snippets.custom.yaml" "$RIME_DIR/.vault_base/snippets.custom.base.yaml"
+  [ -f "$RIME_DIR/custom_phrase.txt" ] && cp -f "$RIME_DIR/custom_phrase.txt" "$RIME_DIR/.vault_base/custom_phrase.base.txt"
+  [ -f "$RIME_DIR/snippets.custom.yaml" ] && cp -f "$RIME_DIR/snippets.custom.yaml" "$SCRIPT_DIR/snippets.custom.yaml"
+  [ -f "$RIME_DIR/custom_phrase.txt" ] && cp -f "$RIME_DIR/custom_phrase.txt" "$SCRIPT_DIR/custom_phrase.txt"
+
+  VAULT_PASS=$(get_vault_pass || true)
+  if [ -n "$VAULT_PASS" ]; then
+    export RIME_VAULT_PASS="$VAULT_PASS"
+    TMP_TAR="/tmp/rime_vault_$$.tar.gz"
+    tar -czf "$TMP_TAR" -C "$SCRIPT_DIR" custom_phrase.txt snippets.custom.yaml sync 2>/dev/null || true
+    if [ -f "$TMP_TAR" ]; then
+      openssl enc -aes-256-cbc -salt -pbkdf2 -pass env:RIME_VAULT_PASS -in "$TMP_TAR" -out "$SCRIPT_DIR/vault.enc" 2>/dev/null || \
+      openssl enc -aes-256-cbc -salt -pbkdf2 -pass "pass:$VAULT_PASS" -in "$TMP_TAR" -out "$SCRIPT_DIR/vault.enc" 2>/dev/null || true
+      rm -f "$TMP_TAR"
+      echo -e "${GREEN}🔒 权威版本已加密打包 (vault.enc)！${NC}"
+    fi
+  fi
+
+  cd "$SCRIPT_DIR"
+  git add vault.enc custom_phrase.example.txt snippets.yaml snippets.custom.example.yaml 2>/dev/null || true
+  git commit -m "restore: 强制恢复并覆盖云端私密数据 $(date '+%Y-%m-%d %H:%M:%S')" || true
+  git push origin main
+  if [ -f "/Library/Input Methods/Squirrel.app/Contents/MacOS/Squirrel" ]; then
+    "/Library/Input Methods/Squirrel.app/Contents/MacOS/Squirrel" --reload || true
+  fi
+  notify_user "Rime 词频同步" "恢复完成" "🎉 本地权威版本已成功强制推送到云端！"
+  echo -e "${GREEN}🎉 权威版本已成功覆盖并推送到云端！${NC}"
+  exit 0
+fi
+
 # 1. 先拉取远程最新变更
 cd "$SCRIPT_DIR"
 if [ -d "$SCRIPT_DIR/.git" ]; then
@@ -146,6 +234,34 @@ if [ -f "$SCRIPT_DIR/vault.enc" ]; then
       
       tar -xzf "$TMP_DEC" -C "$TMP_UNPACK_DIR" 2>/dev/null || true
       rm -f "$TMP_DEC"
+
+      # 如果是 --pull-force (强制以云端覆盖本地)，跳过三路合并直接重置本地
+      if [ "$PULL_FORCE" = true ]; then
+        echo -e "${YELLOW}🚨 强制重置模式：正在以云端数据完全覆盖重置本地...${NC}"
+        mkdir -p "$RIME_DIR/.vault_base"
+        if [ -f "$TMP_UNPACK_DIR/snippets.custom.yaml" ]; then
+          cp -f "$TMP_UNPACK_DIR/snippets.custom.yaml" "$SCRIPT_DIR/snippets.custom.yaml"
+          cp -f "$TMP_UNPACK_DIR/snippets.custom.yaml" "$RIME_DIR/snippets.custom.yaml"
+          cp -f "$TMP_UNPACK_DIR/snippets.custom.yaml" "$RIME_DIR/.vault_base/snippets.custom.base.yaml"
+        fi
+        if [ -f "$TMP_UNPACK_DIR/custom_phrase.txt" ]; then
+          cp -f "$TMP_UNPACK_DIR/custom_phrase.txt" "$SCRIPT_DIR/custom_phrase.txt"
+          cp -f "$TMP_UNPACK_DIR/custom_phrase.txt" "$RIME_DIR/custom_phrase.txt"
+          cp -f "$TMP_UNPACK_DIR/custom_phrase.txt" "$RIME_DIR/.vault_base/custom_phrase.base.txt"
+        fi
+        if [ -d "$TMP_UNPACK_DIR/sync" ]; then
+          mkdir -p "$SCRIPT_DIR/sync" "$RIME_DIR/sync"
+          cp -rf "$TMP_UNPACK_DIR/sync/"* "$SCRIPT_DIR/sync/" 2>/dev/null || true
+          cp -rf "$TMP_UNPACK_DIR/sync/"* "$RIME_DIR/sync/" 2>/dev/null || true
+        fi
+        rm -rf "$TMP_UNPACK_DIR"
+        echo -e "${GREEN}🎉 本地已成功强制以云端权威版本完全重置！${NC}"
+        if [ -f "/Library/Input Methods/Squirrel.app/Contents/MacOS/Squirrel" ]; then
+          "/Library/Input Methods/Squirrel.app/Contents/MacOS/Squirrel" --reload || true
+        fi
+        notify_user "Rime 词频同步" "强制重置完成" "🎉 本地已完全以云端权威数据重置！"
+        exit 0
+      fi
 
       echo -e "${GREEN}✅ 远端数据包解密成功！包含内容:${NC}"
       [ -f "$TMP_UNPACK_DIR/snippets.custom.yaml" ] && echo -e "  • 个人私密片段: snippets.custom.yaml ($(wc -c < "$TMP_UNPACK_DIR/snippets.custom.yaml" | tr -d ' ') 字节)"
