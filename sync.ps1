@@ -198,7 +198,8 @@ function Invoke-ThreeWaySnippetMerge {
         "# ==============================================================================",
         ""
     )
-    $Lines = [System.Collections.Generic.List[string]]::new($Header)
+    $Lines = [System.Collections.Generic.List[string]]::new()
+    foreach ($h in $Header) { [void]$Lines.Add($h) }
     foreach ($t in $MergedOrder) {
         if ($MergedBlocks.ContainsKey($t)) {
             foreach ($l in $MergedBlocks[$t]) { [void]$Lines.Add($l) }
@@ -387,7 +388,7 @@ if (Test-Path $RepoSnippetsYaml) {
     $ConfigUpdated = $true
 }
 
-Get-ChildItem -Path $ScriptDir -Filter "*.custom.yaml" -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne "squirrel.custom.yaml" } | ForEach-Object {
+Get-ChildItem -Path $ScriptDir -Filter "*.custom.yaml" -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne "squirrel.custom.yaml" -and $_.Name -ne "snippets.custom.yaml" } | ForEach-Object {
     $src = $_.FullName
     $dst = Join-Path $RimeDir $_.Name
     Copy-Item -Path $src -Destination $dst -Force
