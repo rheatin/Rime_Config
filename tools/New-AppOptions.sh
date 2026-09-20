@@ -2,19 +2,20 @@
 # ==============================================================================
 # New-AppOptions.sh
 # 扫描「正在运行」与「已安装」的 macOS 程序，生成可粘贴/直接合并进
-# squirrel.custom.yaml 的 app_options 英文/中文条目与终端 no_inline 配置。
+# squirrel.custom.yaml 的 app_options 配置。
 #
-# 背景：鼠须管 (Squirrel) 的 app_options 依据应用程序的 CFBundleIdentifier 匹配。
-# 本脚本自动提取正在运行的 GUI 进程与 /Applications 下已安装 App 的 Bundle ID，
-# 自动排除已收录项、系统守护进程与内部 Helper，对终端类工具自动补充 no_inline: true，
-# 并支持一键智能合并写回 squirrel.custom.yaml。
+# 背景机制：
+# 1. 本配置全局 Fallback 兜底默认即为英文（reset: 1 / ascii_mode: true）。
+#    未在 app_options 中列出的应用，打开时默认本来就会处于英文状态！
+# 2. 因此新增软件时，用户真正需要的配置主要是：
+#    • 【中文模式】设定为默认打中文 (ascii_mode: false，如聊天、办公写作、文档)
+#    • 【终端模式】设定为强制英文且关闭光标嵌入 (ascii_mode: true + no_inline: true)
 #
 # 用法：
 #   ./tools/New-AppOptions.sh                 # 打印未收录的候选条目
 #   ./tools/New-AppOptions.sh -r              # 仅扫描当前正在运行的前台/UI程序
 #   ./tools/New-AppOptions.sh -w              # 生成完整片段到 tools/app_options.mac.generated.yaml
 #   ./tools/New-AppOptions.sh -a              # 智能追加到 squirrel.custom.yaml 并提示重新部署
-#   ./tools/New-AppOptions.sh -c              # 包含聊天与浏览器等建议中文软件
 #   ./tools/New-AppOptions.sh -f "term"       # 仅筛选名称或 Bundle ID 包含 term 的应用
 # ==============================================================================
 
@@ -260,6 +261,8 @@ def is_denied(bid, name, path):
         return True
     if bid.startswith("com.apple.chrono."):
         return True
+    if bid.startswith("com.apple.") and any(x in bid for x in ["Agent", "Helper", "Manager", "Switcher", "Service"]):
+        return True
     if re.search(r"(\.xpc|\.appex|\.helper|Updater|CrashReporter|\.tmp)$", bid, re.IGNORECASE):
         return True
     return False
@@ -289,7 +292,9 @@ def main():
                     all_apps[bid]["name"] = info["name"]
 
     # 过滤候选条目
-    candidates = []
+    term_candidates = []
+    normal_candidates = []
+
     for bid, info in all_apps.items():
         name = info["name"]
         path = info["path"]
@@ -309,51 +314,50 @@ def main():
             if kw not in bid.lower() and kw not in name.lower() and kw not in path.lower():
                 continue
 
-        # 中文白名单判断
-        is_chinese = bid in CHINESE_ALLOWLIST
-        if is_chinese and not args.include_chinese:
-            continue
-
         is_term = is_terminal_app(bid, name, path)
 
-        candidates.append({
+        cand_data = {
             "bid": bid,
             "name": name,
             "path": path,
             "running": is_running,
-            "is_chinese": is_chinese,
             "is_terminal": is_term
-        })
+        }
+
+        if is_term:
+            term_candidates.append(cand_data)
+        else:
+            normal_candidates.append(cand_data)
 
     # 排序：运行中的在前，其余按名称字母排序
-    candidates.sort(key=lambda x: (not x["running"], x["name"].lower(), x["bid"].lower()))
+    term_candidates.sort(key=lambda x: (not x["running"], x["name"].lower(), x["bid"].lower()))
+    normal_candidates.sort(key=lambda x: (not x["running"], x["name"].lower(), x["bid"].lower()))
 
-    if not candidates:
+    total_candidates = len(term_candidates) + len(normal_candidates)
+    if total_candidates == 0:
         print(f"{GREEN}✨ 未发现新的候选应用程序（所有检测到的程序均已收录或在过滤规则中）。{RESET}")
         return
 
     # 生成 YAML 片段
-    header = "    # ─── 显式设定 (由 tools/New-AppOptions.sh 生成) ───"
-    lines = [header]
-
-    for c in candidates:
-        bid = c["bid"]
-        name = c["name"]
-        running_tag = " (运行中)" if c["running"] else ""
-        lines.append(f"    # {name}{running_tag}")
-
-        key = f'"{bid}"' if re.search(r"[\s:]", bid) else bid
-
-        if c["is_chinese"]:
-            lines.append(f"    {key}:")
-            lines.append("      ascii_mode: false")
-        elif c["is_terminal"]:
+    lines = []
+    if term_candidates:
+        lines.append("    # ─── 终端与命令行工具 (强制英文且关闭行内嵌入) ───")
+        for c in term_candidates:
+            running_tag = " (运行中)" if c["running"] else ""
+            lines.append(f"    # {c['name']}{running_tag}")
+            key = f'"{c["bid"]}"' if re.search(r"[\s:]", c["bid"]) else c["bid"]
             lines.append(f"    {key}:")
             lines.append("      ascii_mode: true")
             lines.append("      no_inline: true")
-        else:
+
+    if normal_candidates:
+        lines.append("    # ─── 建议中文模式应用 (按需启用，默认 fallback 为英文) ───")
+        for c in normal_candidates:
+            running_tag = " (运行中)" if c["running"] else ""
+            lines.append(f"    # {c['name']}{running_tag}")
+            key = f'"{c["bid"]}"' if re.search(r"[\s:]", c["bid"]) else c["bid"]
             lines.append(f"    {key}:")
-            lines.append("      ascii_mode: true")
+            lines.append("      ascii_mode: false")
 
     yaml_content = "\n".join(lines)
 
@@ -362,7 +366,7 @@ def main():
         out_file = os.path.join(repo_root, "tools", "app_options.mac.generated.yaml")
         with open(out_file, "w", encoding="utf-8") as f:
             f.write(yaml_content + "\n")
-        print(f"\n{GREEN}✅ 已成功生成 YAML 片段文件: {out_file} ({len(candidates)} 条){RESET}")
+        print(f"\n{GREEN}✅ 已成功生成 YAML 片段文件: {out_file} ({total_candidates} 条){RESET}")
         return
 
     # 直接合并写回 squirrel.custom.yaml
@@ -385,22 +389,19 @@ def main():
             insert_pos = style_match.start()
             new_content = content[:insert_pos] + "\n" + yaml_content + "\n\n" + content[insert_pos+1:]
         else:
-            # 回退：直接追加到末尾
             new_content = content.rstrip() + "\n\n" + yaml_content + "\n"
 
         with open(yaml_path, "w", encoding="utf-8") as f:
             f.write(new_content)
 
-        print(f"{GREEN}🎉 成功合并 {len(candidates)} 个应用配置到: {yaml_path}{RESET}")
+        print(f"{GREEN}🎉 成功合并 {total_candidates} 个应用配置到: {yaml_path}{RESET}")
 
-        # 如果用户本地存在 ~/Library/Rime，同时同步并提示重新部署
         user_rime = os.path.expanduser("~/Library/Rime")
         if os.path.isdir(user_rime):
             dest = os.path.join(user_rime, "squirrel.custom.yaml")
             shutil.copyfile(yaml_path, dest)
             print(f"{GREEN}🚀 已自动同步更新至: {dest}{RESET}")
 
-            # 触发重新部署
             squirrel_bin = "/Library/Input Methods/Squirrel.app/Contents/MacOS/Squirrel"
             if os.path.exists(squirrel_bin):
                 print(f"{CYAN}🔄 正在重新加载 Squirrel (鼠须管)...{RESET}")
@@ -412,26 +413,28 @@ def main():
         return
 
     # 默认输出到终端屏幕
-    print(f"\n{YELLOW}未收录的候选程序 ({len(candidates)} 个)，可直接粘贴到 squirrel.custom.yaml 的 app_options 下:{RESET}")
-    print(f"{GRAY}{header}{RESET}")
-    for c in candidates:
-        bid = c["bid"]
-        name = c["name"]
-        running_tag = f" {MAGENTA}[运行中]{RESET}" if c["running"] else ""
-        type_tag = f" {CYAN}[终端: no_inline]{RESET}" if c["is_terminal"] else (" [建议中文]" if c["is_chinese"] else "")
+    print(f"\n{YELLOW}未收录的候选程序 ({total_candidates} 个)，按需复制粘贴到 squirrel.custom.yaml 的 app_options 下:{RESET}")
+    print(f"{GRAY}💡 架构提醒：未列出的软件因全局 fallback 已经默认为英文，故无需重复配置为英文。{RESET}\n")
 
-        print(f"{GRAY}    # {name}{RESET}{running_tag}{type_tag}")
-        key = f'"{bid}"' if re.search(r"[\s:]", bid) else bid
-        if c["is_chinese"]:
-            print(f"    {key}:")
-            print("      ascii_mode: false")
-        elif c["is_terminal"]:
+    if term_candidates:
+        print(f"{CYAN}💻 终端与命令行工具 (建议强制英文 + 关闭行内嵌入):{RESET}")
+        for c in term_candidates:
+            running_tag = f" {MAGENTA}[运行中]{RESET}" if c["running"] else ""
+            print(f"{GRAY}    # {c['name']}{RESET}{running_tag}")
+            key = f'"{c["bid"]}"' if re.search(r"[\s:]", c["bid"]) else c["bid"]
             print(f"    {key}:")
             print("      ascii_mode: true")
             print("      no_inline: true")
-        else:
+        print("")
+
+    if normal_candidates:
+        print(f"{GREEN}🇨🇳 普通应用程序 (如需打开时自动打中文，可配置 ascii_mode: false):{RESET}")
+        for c in normal_candidates:
+            running_tag = f" {MAGENTA}[运行中]{RESET}" if c["running"] else ""
+            print(f"{GRAY}    # {c['name']}{RESET}{running_tag}")
+            key = f'"{c["bid"]}"' if re.search(r"[\s:]", c["bid"]) else c["bid"]
             print(f"    {key}:")
-            print("      ascii_mode: true")
+            print("      ascii_mode: false")
 
     print(f"\n{GRAY}提示:{RESET}")
     print(f"  • 使用 {BOLD}./tools/New-AppOptions.sh -r{RESET} 可仅扫描当前运行中的应用。")
