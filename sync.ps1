@@ -278,26 +278,21 @@ if ((Test-Path $VaultEnc) -and $OpenSSL) {
             if (Test-Path $DecPhrase) { Log-Message "  • 系统自定义短语: custom_phrase.txt ($((Get-Content $DecPhrase).Count) 行)" }
             if (Test-Path $DecSync) { Log-Message "  • 跨平台词频目录: sync/ ($((Get-ChildItem $DecSync).Name -join ', '))" }
 
-            # 智能双向合并 snippets.custom.yaml (远端先加载，本地修改最后加载以保证最新修改压制旧数据)
+            # 智能双向合并 snippets.custom.yaml (按修改时间升序排列，最新编辑的文件排在最后进行高优先级覆盖)
             $RepoCustom = Join-Path $ScriptDir "snippets.custom.yaml"
             $RimeCustom = Join-Path $RimeDir "snippets.custom.yaml"
 
-            $MergeList = [System.Collections.Generic.List[string]]::new()
-            if (Test-Path $DecCustom) { [void]$MergeList.Add($DecCustom) }
+            $Candidates = @(
+                @{ Path = $DecCustom; Name = "远端云端" },
+                @{ Path = $RepoCustom; Name = "本地仓库" },
+                @{ Path = $RimeCustom; Name = "用户目录" }
+            ) | Where-Object { Test-Path $_.Path } | Sort-Object { (Get-Item $_.Path).LastWriteTime }
 
-            if ((Test-Path $RimeCustom) -and (Test-Path $RepoCustom)) {
-                if ((Get-Item $RimeCustom).LastWriteTime -ge (Get-Item $RepoCustom).LastWriteTime) {
-                    [void]$MergeList.Add($RepoCustom)
-                    [void]$MergeList.Add($RimeCustom)
-                } else {
-                    [void]$MergeList.Add($RimeCustom)
-                    [void]$MergeList.Add($RepoCustom)
-                }
-            } elseif (Test-Path $RimeCustom) {
-                [void]$MergeList.Add($RimeCustom)
-            } elseif (Test-Path $RepoCustom) {
-                [void]$MergeList.Add($RepoCustom)
-            }
+            $MergeList = [System.Collections.Generic.List[string]]::new()
+            foreach ($c in $Candidates) { [void]$MergeList.Add($c.Path) }
+
+            $Newest = $Candidates[-1]
+            Log-Message "  • 私密片段合并判定：最新文件为 [$($Newest.Name)] ($((Get-Item $Newest.Path).LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss')))，作为最高优先级覆盖！"
 
             Merge-SnippetYaml -FilePaths $MergeList.ToArray() -OutPaths @($RepoCustom, $RimeCustom)
 

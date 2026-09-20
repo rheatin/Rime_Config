@@ -155,32 +155,15 @@ if [ -f "$SCRIPT_DIR/vault.enc" ]; then
       # 双向智能合并 snippets.custom.yaml (融合本地修改与远端解密内容)
       python3 -c "
 import os
-def merge_yaml(remote_file, local_files, out_paths):
+def merge_yaml(files, out_paths):
     blocks = {}
     order = []
-    remote_triggers = set()
-    local_triggers = set()
+    valid_files = [f for f in files if os.path.exists(f)]
+    if not valid_files: return
+    # 按最后修改时间升序排列：最旧的先加载作为底座，最新的最后加载以获得最终覆盖权
+    valid_files.sort(key=lambda p: os.path.getmtime(p))
 
-    # 1. 远端数据作为底座先加载
-    if os.path.exists(remote_file):
-        cur_t = None
-        cur_l = []
-        with open(remote_file, 'r', encoding='utf-8', errors='ignore') as f:
-            for line in f:
-                raw = line.rstrip('\r\n')
-                s = raw.strip()
-                if s.startswith('/') and ':' in s:
-                    if cur_t and cur_l: blocks[cur_t] = cur_l
-                    cur_t = s.split(':')[0].strip('\"\'')
-                    if cur_t not in order: order.append(cur_t)
-                    remote_triggers.add(cur_t)
-                    cur_l = [raw]
-                elif cur_t: cur_l.append(raw)
-            if cur_t and cur_l: blocks[cur_t] = cur_l
-
-    # 2. 本地文件最后加载以保证本地最新修改压制远端旧数据
-    for fp in local_files:
-        if not os.path.exists(fp): continue
+    for fp in valid_files:
         cur_t = None
         cur_l = []
         with open(fp, 'r', encoding='utf-8', errors='ignore') as f:
@@ -191,7 +174,6 @@ def merge_yaml(remote_file, local_files, out_paths):
                     if cur_t and cur_l: blocks[cur_t] = cur_l
                     cur_t = s.split(':')[0].strip('\"\'')
                     if cur_t not in order: order.append(cur_t)
-                    local_triggers.add(cur_t)
                     cur_l = [raw]
                 elif cur_t: cur_l.append(raw)
             if cur_t and cur_l: blocks[cur_t] = cur_l
@@ -215,11 +197,11 @@ def merge_yaml(remote_file, local_files, out_paths):
             with open(p, 'w', encoding='utf-8') as f:
                 f.write(content)
 
-    print(f'  🧩 snippets.custom.yaml 合并完成: 远端包含 {len(remote_triggers)} 个前缀, 本地包含 {len(local_triggers)} 个前缀 ➔ 最终合并 {len(order)} 个片段')
+    newest_fp = valid_files[-1]
+    print(f'  🧩 snippets.custom.yaml 合并完成：以最新修改 [{os.path.basename(os.path.dirname(newest_fp))}/{os.path.basename(newest_fp)}] 优先覆盖，生效 {len(order)} 个片段')
 
 merge_yaml(
-    '$TMP_UNPACK_DIR/snippets.custom.yaml',
-    ['$SCRIPT_DIR/snippets.custom.yaml', '$RIME_DIR/snippets.custom.yaml'],
+    ['$TMP_UNPACK_DIR/snippets.custom.yaml', '$SCRIPT_DIR/snippets.custom.yaml', '$RIME_DIR/snippets.custom.yaml'],
     ['$SCRIPT_DIR/snippets.custom.yaml', '$RIME_DIR/snippets.custom.yaml']
 )
 " 2>/dev/null || true
