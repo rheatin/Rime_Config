@@ -78,8 +78,7 @@ function Get-VaultPass {
     Write-Host "🔒 Rime 隐私数据加密同步 (首次配置 / 验证)" -ForegroundColor Yellow
     Write-Host "请输入你的同步密码 (与 Mac 端设置的密码一致即可自动互通)："
     $SecurePass = Read-Host "🔑 请输入密码" -AsSecureString
-    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecurePass)
-    $PlainPass = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+    $PlainPass = [System.Net.NetworkCredential]::new("", $SecurePass).Password
 
     if (-not $PlainPass) {
         Write-Host "⚠️ 未输入密码，本次跳过加密隐私数据同步。" -ForegroundColor Yellow
@@ -135,7 +134,10 @@ if ((Test-Path $VaultEnc) -and $OpenSSL) {
         Log-Message "正在解密隐私数据包 (vault.enc)..."
         $TempTar = Join-Path $env:TEMP "rime_vault_dec.tar.gz"
         try {
-            $VaultPass | & $OpenSSL enc -d -aes-256-cbc -salt -pbkdf2 -pass stdin -in $VaultEnc -out $TempTar 2>$null
+            & $OpenSSL enc -d -aes-256-cbc -salt -pbkdf2 -pass "pass:$VaultPass" -in $VaultEnc -out $TempTar 2>$null
+            if (-not (Test-Path $TempTar)) {
+                $VaultPass | & $OpenSSL enc -d -aes-256-cbc -salt -pbkdf2 -pass stdin -in $VaultEnc -out $TempTar 2>$null
+            }
             if (Test-Path $TempTar) {
                 tar -xzf $TempTar -C $ScriptDir 2>$null
                 Remove-Item -Path $TempTar -Force -ErrorAction SilentlyContinue
@@ -196,14 +198,46 @@ Get-ChildItem -Path $ScriptDir -Filter "*.dict.yaml" -File -ErrorAction Silently
     }
 }
 
+# 2.3 双向增量合并 custom_phrase.txt
 $RepoPhrase = Join-Path $ScriptDir "custom_phrase.txt"
 $RimePhrase = Join-Path $RimeDir "custom_phrase.txt"
-if (Test-Path $RepoPhrase) {
-    if ((-not (Test-Path $RimePhrase)) -or ((Get-FileHash $RepoPhrase).Hash -ne (Get-FileHash $RimePhrase).Hash)) {
-        Log-Message "发现最新的系统自定义短语，正在更新到小狼毫用户目录..."
-        Copy-Item -Path $RepoPhrase -Destination $RimePhrase -Force
-        $ConfigUpdated = $true
+if ((Test-Path $RepoPhrase) -or (Test-Path $RimePhrase)) {
+    $AllEntries = @{}
+    $PhraseFiles = @($RepoPhrase, $RimePhrase) | Where-Object { Test-Path $_ }
+    foreach ($pf in $PhraseFiles) {
+        Get-Content $pf -Encoding UTF8 -ErrorAction SilentlyContinue | ForEach-Object {
+            $line = $_.Trim()
+            if ($line -and -not $line.StartsWith("#")) {
+                $parts = $line -split "`t"
+                if ($parts.Count -ge 2) {
+                    $key = "$($parts[0].Trim())`t$($parts[1].Trim())"
+                    $w = if ($parts.Count -ge 3) { $parts[2].Trim() } else { "1000" }
+                    $AllEntries[$key] = $w
+                }
+            }
+        }
     }
+    
+    $Headers = @(
+        "# Rime table",
+        "# coding: utf-8",
+        "#@/db_name`tcustom_phrase.txt",
+        "#@/db_type`ttabledb",
+        "#",
+        "# 跨平台「自定义短语 / 文本替换」双向增量合并表 (全拼 26键)",
+        "# 格式：文字<Tab>编码<Tab>权重",
+        "#",
+        "# 此行之后不能写注释",
+        ""
+    )
+    $MergedLines = [System.Collections.Generic.List[string]]::new($Headers)
+    foreach ($k in ($AllEntries.Keys | Sort-Object)) {
+        $MergedLines.Add("$k`t$($AllEntries[$k])")
+    }
+    $MergedContent = $MergedLines -join "`n"
+    [System.IO.File]::WriteAllText($RepoPhrase, $MergedContent, [System.Text.Encoding]::UTF8)
+    [System.IO.File]::WriteAllText($RimePhrase, $MergedContent, [System.Text.Encoding]::UTF8)
+    $ConfigUpdated = $true
 }
 
 # 3. 归档词频文件到仓库
@@ -227,7 +261,7 @@ if ($OpenSSL) {
             Push-Location $ScriptDir
             tar -czf $TempTar custom_phrase.txt snippets.custom.yaml sync 2>$null
             if (Test-Path $TempTar) {
-                $VaultPass | & $OpenSSL enc -aes-256-cbc -salt -pbkdf2 -pass stdin -in $TempTar -out $VaultEnc 2>$null
+                & $OpenSSL enc -aes-256-cbc -salt -pbkdf2 -pass "pass:$VaultPass" -in $TempTar -out $VaultEnc 2>$null
                 Remove-Item -Path $TempTar -Force -ErrorAction SilentlyContinue
                 Log-Message "🔒 隐私短语、私有片段与词频已成功通过 AES-256 加密打包 (vault.enc)！"
             }
