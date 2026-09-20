@@ -267,6 +267,29 @@ if ((Test-Path $RepoPhrase) -or (Test-Path $RimePhrase)) {
 $SourceSync = Join-Path $RimeDir "sync"
 $TargetSync = Join-Path $ScriptDir "sync"
 
+# 3.0 确保用户目录中的私密片段与短语同步回仓库目录 (以最新修改时间为准)
+$RepoSnippetsCustom = Join-Path $ScriptDir "snippets.custom.yaml"
+$RimeSnippetsCustom = Join-Path $RimeDir "snippets.custom.yaml"
+if ((Test-Path $RimeSnippetsCustom) -and (Test-Path $RepoSnippetsCustom)) {
+    if ((Get-Item $RimeSnippetsCustom).LastWriteTime -gt (Get-Item $RepoSnippetsCustom).LastWriteTime) {
+        Log-Message "检测到用户文件夹中的 snippets.custom.yaml 有较新修改，正在同步到仓库..."
+        Copy-Item -Path $RimeSnippetsCustom -Destination $RepoSnippetsCustom -Force
+    }
+} elseif (Test-Path $RimeSnippetsCustom) {
+    Copy-Item -Path $RimeSnippetsCustom -Destination $RepoSnippetsCustom -Force
+}
+
+$RepoSnippetsYaml = Join-Path $ScriptDir "snippets.yaml"
+$RimeSnippetsYaml = Join-Path $RimeDir "snippets.yaml"
+if ((Test-Path $RimeSnippetsYaml) -and (Test-Path $RepoSnippetsYaml)) {
+    if ((Get-Item $RimeSnippetsYaml).LastWriteTime -gt (Get-Item $RepoSnippetsYaml).LastWriteTime) {
+        Log-Message "检测到用户文件夹中的 snippets.yaml 有较新修改，正在同步到仓库..."
+        Copy-Item -Path $RimeSnippetsYaml -Destination $RepoSnippetsYaml -Force
+    }
+} elseif (Test-Path $RimeSnippetsYaml) {
+    Copy-Item -Path $RimeSnippetsYaml -Destination $RepoSnippetsYaml -Force
+}
+
 if (Test-Path $SourceSync) {
     Log-Message "正在归档词频文件从 $SourceSync 到 $TargetSync..."
     if (-not (Test-Path $TargetSync)) { New-Item -ItemType Directory -Path $TargetSync -Force | Out-Null }

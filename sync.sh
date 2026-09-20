@@ -255,6 +255,18 @@ fi
 
 # 4. 归档词频文件并进行 AES-256 密文打包 (保护隐私短语与个人打字记录)
 echo -e "${BLUE}📦 4. 正在归档词频并进行 AES-256 加密打包...${NC}"
+
+# 4.0 确保用户目录中的私密片段同步回仓库目录 (以最新修改时间为准)
+if [ -f "$RIME_DIR/snippets.custom.yaml" ] && [ -f "$SCRIPT_DIR/snippets.custom.yaml" ]; then
+  rime_mtime=$(stat -f %m "$RIME_DIR/snippets.custom.yaml" 2>/dev/null || echo 0)
+  repo_mtime=$(stat -f %m "$SCRIPT_DIR/snippets.custom.yaml" 2>/dev/null || echo 0)
+  if [ "$rime_mtime" -gt "$repo_mtime" ]; then
+    cp -f "$RIME_DIR/snippets.custom.yaml" "$SCRIPT_DIR/snippets.custom.yaml"
+  fi
+elif [ -f "$RIME_DIR/snippets.custom.yaml" ]; then
+  cp -f "$RIME_DIR/snippets.custom.yaml" "$SCRIPT_DIR/snippets.custom.yaml"
+fi
+
 mkdir -p "$SCRIPT_DIR/sync"
 if [ -d "$RIME_DIR/sync" ]; then
   cp -rf "$RIME_DIR/sync/"* "$SCRIPT_DIR/sync/" 2>/dev/null || true
