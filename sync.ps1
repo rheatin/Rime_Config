@@ -256,44 +256,103 @@ if ((Test-Path $VaultEnc) -and $OpenSSL) {
             if (-not (Test-Path $TempTar)) {
                 $VaultPass | & $OpenSSL enc -d -aes-256-cbc -salt -pbkdf2 -pass stdin -in $VaultEnc -out $TempTar 2>$null
             }
-            if (Test-Path $TempTar) {
-                tar -xzf $TempTar -C $TempUnpackDir 2>$null
-                Remove-Item -Path $TempTar -Force -ErrorAction SilentlyContinue
+            if (-not (Test-Path $TempTar)) {
+                Log-Message "❌ 严重错误：远端私密数据包 (vault.enc) 解密失败！"
+                Log-Message "🔑 诊断原因：当前保存的同步密码与远端不匹配（或密文损坏）。"
+                Log-Message "🛡️ 保护机制触发：已紧急终止同步，绝不拿未解密的旧数据覆盖本地！"
+                Log-Message "💡 解决方案：请在终端运行 powershell -NoProfile -File .\sync.ps1 -ResetPass 重新输入正确密码。"
+                Show-Balloon -Title "Rime 词频同步" -Message "❌ 密码错误无法解密远端数据，请运行 .\sync.ps1 -ResetPass 重置密码。"
+                Remove-Item -Recurse -Force $TempUnpackDir -ErrorAction SilentlyContinue
+                return
+            }
 
-                # 智能双向合并 snippets.custom.yaml (远端先加载，本地修改最后加载以保证最新修改压制旧数据)
-                $RepoCustom = Join-Path $ScriptDir "snippets.custom.yaml"
-                $RimeCustom = Join-Path $RimeDir "snippets.custom.yaml"
-                $DecCustom = Join-Path $TempUnpackDir "snippets.custom.yaml"
+            tar -xzf $TempTar -C $TempUnpackDir 2>$null
+            Remove-Item -Path $TempTar -Force -ErrorAction SilentlyContinue
 
-                $MergeList = [System.Collections.Generic.List[string]]::new()
-                if (Test-Path $DecCustom) { [void]$MergeList.Add($DecCustom) }
+            $DecCustom = Join-Path $TempUnpackDir "snippets.custom.yaml"
+            $DecPhrase = Join-Path $TempUnpackDir "custom_phrase.txt"
+            $DecSync = Join-Path $TempUnpackDir "sync"
 
-                if ((Test-Path $RimeCustom) -and (Test-Path $RepoCustom)) {
-                    if ((Get-Item $RimeCustom).LastWriteTime -ge (Get-Item $RepoCustom).LastWriteTime) {
-                        [void]$MergeList.Add($RepoCustom)
-                        [void]$MergeList.Add($RimeCustom)
-                    } else {
-                        [void]$MergeList.Add($RimeCustom)
-                        [void]$MergeList.Add($RepoCustom)
-                    }
-                } elseif (Test-Path $RimeCustom) {
+            Log-Message "✅ 远端数据包解密成功！包含内容:"
+            if (Test-Path $DecCustom) { Log-Message "  • 个人私密片段: snippets.custom.yaml ($((Get-Item $DecCustom).Length) 字节)" }
+            if (Test-Path $DecPhrase) { Log-Message "  • 系统自定义短语: custom_phrase.txt ($((Get-Content $DecPhrase).Count) 行)" }
+            if (Test-Path $DecSync) { Log-Message "  • 跨平台词频目录: sync/ ($((Get-ChildItem $DecSync).Name -join ', '))" }
+
+            # 智能双向合并 snippets.custom.yaml (远端先加载，本地修改最后加载以保证最新修改压制旧数据)
+            $RepoCustom = Join-Path $ScriptDir "snippets.custom.yaml"
+            $RimeCustom = Join-Path $RimeDir "snippets.custom.yaml"
+
+            $MergeList = [System.Collections.Generic.List[string]]::new()
+            if (Test-Path $DecCustom) { [void]$MergeList.Add($DecCustom) }
+
+            if ((Test-Path $RimeCustom) -and (Test-Path $RepoCustom)) {
+                if ((Get-Item $RimeCustom).LastWriteTime -ge (Get-Item $RepoCustom).LastWriteTime) {
+                    [void]$MergeList.Add($RepoCustom)
                     [void]$MergeList.Add($RimeCustom)
-                } elseif (Test-Path $RepoCustom) {
+                } else {
+                    [void]$MergeList.Add($RimeCustom)
                     [void]$MergeList.Add($RepoCustom)
                 }
-
-                Merge-SnippetYaml -FilePaths $MergeList.ToArray() -OutPaths @($RepoCustom, $RimeCustom)
-
-                # 合并词频目录
-                $DecSync = Join-Path $TempUnpackDir "sync"
-                if (Test-Path $DecSync) {
-                    Copy-Item -Path (Join-Path $DecSync "*") -Destination (Join-Path $ScriptDir "sync") -Recurse -Force -ErrorAction SilentlyContinue
-                    Copy-Item -Path (Join-Path $DecSync "*") -Destination (Join-Path $RimeDir "sync") -Recurse -Force -ErrorAction SilentlyContinue
-                }
-
-                Remove-Item -Recurse -Force $TempUnpackDir -ErrorAction SilentlyContinue
-                Log-Message "✅ 隐私短语与词频解密提取成功！"
+            } elseif (Test-Path $RimeCustom) {
+                [void]$MergeList.Add($RimeCustom)
+            } elseif (Test-Path $RepoCustom) {
+                [void]$MergeList.Add($RepoCustom)
             }
+
+            Merge-SnippetYaml -FilePaths $MergeList.ToArray() -OutPaths @($RepoCustom, $RimeCustom)
+
+            # 智能双向合并 custom_phrase.txt
+            $RepoPhrase = Join-Path $ScriptDir "custom_phrase.txt"
+            $RimePhrase = Join-Path $RimeDir "custom_phrase.txt"
+            $PhraseFiles = @($DecPhrase, $RepoPhrase, $RimePhrase) | Where-Object { Test-Path $_ }
+            
+            $AllEntries = @{}
+            foreach ($pf in $PhraseFiles) {
+                Get-Content $pf -Encoding UTF8 -ErrorAction SilentlyContinue | ForEach-Object {
+                    $line = $_.Trim()
+                    if ($line -and -not $line.StartsWith("#")) {
+                        $parts = $line -split "`t"
+                        if ($parts.Count -ge 2) {
+                            $key = "$($parts[0].Trim())`t$($parts[1].Trim())"
+                            $w = if ($parts.Count -ge 3) { $parts[2].Trim() } else { "1000" }
+                            $AllEntries[$key] = $w
+                        }
+                    }
+                }
+            }
+            
+            $Headers = @(
+                "# Rime table",
+                "# coding: utf-8",
+                "#@/db_name`tcustom_phrase.txt",
+                "#@/db_type`ttabledb",
+                "#",
+                "# 跨平台「自定义短语 / 文本替换」双向增量合并表 (全拼 26键)",
+                "# 格式：文字<Tab>编码<Tab>权重",
+                "#",
+                "# 此行之后不能写注释",
+                ""
+            )
+            $MergedLines = [System.Collections.Generic.List[string]]::new()
+            foreach ($h in $Headers) { [void]$MergedLines.Add($h) }
+            foreach ($k in ($AllEntries.Keys | Sort-Object)) {
+                $val = $AllEntries[$k]
+                [void]$MergedLines.Add($k + "`t" + $val)
+            }
+            $MergedContent = $MergedLines -join "`n"
+            [System.IO.File]::WriteAllText($RepoPhrase, $MergedContent, [System.Text.Encoding]::UTF8)
+            [System.IO.File]::WriteAllText($RimePhrase, $MergedContent, [System.Text.Encoding]::UTF8)
+            Log-Message "  • custom_phrase.txt 双向合并完成，共计 $($AllEntries.Count) 条短语！"
+
+            # 合并词频目录
+            if (Test-Path $DecSync) {
+                Copy-Item -Path (Join-Path $DecSync "*") -Destination (Join-Path $ScriptDir "sync") -Recurse -Force -ErrorAction SilentlyContinue
+                Copy-Item -Path (Join-Path $DecSync "*") -Destination (Join-Path $RimeDir "sync") -Recurse -Force -ErrorAction SilentlyContinue
+            }
+
+            Remove-Item -Recurse -Force $TempUnpackDir -ErrorAction SilentlyContinue
+            Log-Message "✅ 远端隐私短语、私密片段与词频已成功解密并完成双向合并！"
+            $ConfigUpdated = $true
         } catch {}
     }
 }
@@ -339,49 +398,7 @@ Get-ChildItem -Path $ScriptDir -Filter "*.dict.yaml" -File -ErrorAction Silently
     }
 }
 
-# 2.3 双向增量合并 custom_phrase.txt
-$RepoPhrase = Join-Path $ScriptDir "custom_phrase.txt"
-$RimePhrase = Join-Path $RimeDir "custom_phrase.txt"
-if ((Test-Path $RepoPhrase) -or (Test-Path $RimePhrase)) {
-    $AllEntries = @{}
-    $PhraseFiles = @($RepoPhrase, $RimePhrase) | Where-Object { Test-Path $_ }
-    foreach ($pf in $PhraseFiles) {
-        Get-Content $pf -Encoding UTF8 -ErrorAction SilentlyContinue | ForEach-Object {
-            $line = $_.Trim()
-            if ($line -and -not $line.StartsWith("#")) {
-                $parts = $line -split "`t"
-                if ($parts.Count -ge 2) {
-                    $key = "$($parts[0].Trim())`t$($parts[1].Trim())"
-                    $w = if ($parts.Count -ge 3) { $parts[2].Trim() } else { "1000" }
-                    $AllEntries[$key] = $w
-                }
-            }
-        }
-    }
-    
-    $Headers = @(
-        "# Rime table",
-        "# coding: utf-8",
-        "#@/db_name`tcustom_phrase.txt",
-        "#@/db_type`ttabledb",
-        "#",
-        "# 跨平台「自定义短语 / 文本替换」双向增量合并表 (全拼 26键)",
-        "# 格式：文字<Tab>编码<Tab>权重",
-        "#",
-        "# 此行之后不能写注释",
-        ""
-    )
-    $MergedLines = [System.Collections.Generic.List[string]]::new()
-    foreach ($h in $Headers) { [void]$MergedLines.Add($h) }
-    foreach ($k in ($AllEntries.Keys | Sort-Object)) {
-        $val = $AllEntries[$k]
-        [void]$MergedLines.Add($k + "`t" + $val)
-    }
-    $MergedContent = $MergedLines -join "`n"
-    [System.IO.File]::WriteAllText($RepoPhrase, $MergedContent, [System.Text.Encoding]::UTF8)
-    [System.IO.File]::WriteAllText($RimePhrase, $MergedContent, [System.Text.Encoding]::UTF8)
-    $ConfigUpdated = $true
-}
+
 
 # 3. 归档词频文件到仓库
 $SourceSync = Join-Path $RimeDir "sync"

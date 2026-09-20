@@ -131,42 +131,70 @@ fi
 # 1.1 自动解密远端同步的隐私数据 (若存在密文包)
 if [ -f "$SCRIPT_DIR/vault.enc" ]; then
   VAULT_PASS=$(get_vault_pass || true)
-  if [ -n "$VAULT_PASS" ]; then
+  if [ -z "$VAULT_PASS" ]; then
+    echo -e "${RED}❌ 无法获取同步密码，跳过远端私密数据解密。${NC}"
+  else
     export RIME_VAULT_PASS="$VAULT_PASS"
     TMP_DEC="/tmp/rime_vault_dec_$$.tar.gz"
     TMP_UNPACK_DIR="/tmp/rime_vault_unpack_$$"
     mkdir -p "$TMP_UNPACK_DIR"
+
+    echo -e "${BLUE}🔓 正在解密远端数据包 (vault.enc)...${NC}"
     if openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass env:RIME_VAULT_PASS -in "$SCRIPT_DIR/vault.enc" -out "$TMP_DEC" 2>/dev/null || \
        openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass "pass:$VAULT_PASS" -in "$SCRIPT_DIR/vault.enc" -out "$TMP_DEC" 2>/dev/null || \
        echo "$VAULT_PASS" | openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass stdin -in "$SCRIPT_DIR/vault.enc" -out "$TMP_DEC" 2>/dev/null; then
+      
       tar -xzf "$TMP_DEC" -C "$TMP_UNPACK_DIR" 2>/dev/null || true
       rm -f "$TMP_DEC"
+
+      echo -e "${GREEN}✅ 远端数据包解密成功！包含内容:${NC}"
+      [ -f "$TMP_UNPACK_DIR/snippets.custom.yaml" ] && echo -e "  • 个人私密片段: snippets.custom.yaml ($(wc -c < "$TMP_UNPACK_DIR/snippets.custom.yaml" | tr -d ' ') 字节)"
+      [ -f "$TMP_UNPACK_DIR/custom_phrase.txt" ] && echo -e "  • 系统自定义短语: custom_phrase.txt ($(wc -l < "$TMP_UNPACK_DIR/custom_phrase.txt" | tr -d ' ') 行)"
+      [ -d "$TMP_UNPACK_DIR/sync" ] && echo -e "  • 跨平台词频目录: sync/ ($(ls "$TMP_UNPACK_DIR/sync" 2>/dev/null | tr '\n' ' '))"
 
       # 双向智能合并 snippets.custom.yaml (融合本地修改与远端解密内容)
       python3 -c "
 import os
-def merge_yaml(files):
+def merge_yaml(remote_file, local_files, out_paths):
     blocks = {}
     order = []
-    for fp in files:
+    remote_triggers = set()
+    local_triggers = set()
+
+    # 1. 远端数据作为底座先加载
+    if os.path.exists(remote_file):
+        cur_t = None
+        cur_l = []
+        with open(remote_file, 'r', encoding='utf-8', errors='ignore') as f:
+            for line in f:
+                raw = line.rstrip('\r\n')
+                s = raw.strip()
+                if s.startswith('/') and ':' in s:
+                    if cur_t and cur_l: blocks[cur_t] = cur_l
+                    cur_t = s.split(':')[0].strip('\"\'')
+                    if cur_t not in order: order.append(cur_t)
+                    remote_triggers.add(cur_t)
+                    cur_l = [raw]
+                elif cur_t: cur_l.append(raw)
+            if cur_t and cur_l: blocks[cur_t] = cur_l
+
+    # 2. 本地文件最后加载以保证本地最新修改压制远端旧数据
+    for fp in local_files:
         if not os.path.exists(fp): continue
-        cur_trigger = None
-        cur_lines = []
+        cur_t = None
+        cur_l = []
         with open(fp, 'r', encoding='utf-8', errors='ignore') as f:
             for line in f:
                 raw = line.rstrip('\r\n')
                 s = raw.strip()
                 if s.startswith('/') and ':' in s:
-                    if cur_trigger and cur_lines:
-                        blocks[cur_trigger] = cur_lines
-                    cur_trigger = s.split(':')[0].strip('\"\'')
-                    if cur_trigger not in order:
-                        order.append(cur_trigger)
-                    cur_lines = [raw]
-                elif cur_trigger:
-                    cur_lines.append(raw)
-            if cur_trigger and cur_lines:
-                blocks[cur_trigger] = cur_lines
+                    if cur_t and cur_l: blocks[cur_t] = cur_l
+                    cur_t = s.split(':')[0].strip('\"\'')
+                    if cur_t not in order: order.append(cur_t)
+                    local_triggers.add(cur_t)
+                    cur_l = [raw]
+                elif cur_t: cur_l.append(raw)
+            if cur_t and cur_l: blocks[cur_t] = cur_l
 
     if not order: return
     header = [
@@ -182,38 +210,42 @@ def merge_yaml(files):
         res.extend(blocks[t])
         res.append('')
     content = '\n'.join(res) + '\n'
-    for p in ['$SCRIPT_DIR/snippets.custom.yaml', '$RIME_DIR/snippets.custom.yaml']:
+    for p in out_paths:
         if os.path.isdir(os.path.dirname(p)):
             with open(p, 'w', encoding='utf-8') as f:
                 f.write(content)
 
-files_to_merge = []
-if os.path.exists('$TMP_UNPACK_DIR/snippets.custom.yaml'):
-    files_to_merge.append('$TMP_UNPACK_DIR/snippets.custom.yaml')
+    print(f'  🧩 snippets.custom.yaml 合并完成: 远端包含 {len(remote_triggers)} 个前缀, 本地包含 {len(local_triggers)} 个前缀 ➔ 最终合并 {len(order)} 个片段')
 
-locals_list = [f for f in ['$SCRIPT_DIR/snippets.custom.yaml', '$RIME_DIR/snippets.custom.yaml'] if os.path.exists(f)]
-if len(locals_list) == 2:
-    if os.path.getmtime(locals_list[0]) > os.path.getmtime(locals_list[1]):
-        files_to_merge.extend([locals_list[1], locals_list[0]])
-    else:
-        files_to_merge.extend([locals_list[0], locals_list[1]])
-elif len(locals_list) == 1:
-    files_to_merge.append(locals_list[0])
-
-merge_yaml(files_to_merge)
+merge_yaml(
+    '$TMP_UNPACK_DIR/snippets.custom.yaml',
+    ['$SCRIPT_DIR/snippets.custom.yaml', '$RIME_DIR/snippets.custom.yaml'],
+    ['$SCRIPT_DIR/snippets.custom.yaml', '$RIME_DIR/snippets.custom.yaml']
+)
 " 2>/dev/null || true
 
-      # 复制同步过来的 sync 词频与短语
+      # 复制同步过来的 sync 词频
       if [ -d "$TMP_UNPACK_DIR/sync" ]; then
         mkdir -p "$SCRIPT_DIR/sync" "$RIME_DIR/sync"
         cp -rf "$TMP_UNPACK_DIR/sync/"* "$SCRIPT_DIR/sync/" 2>/dev/null || true
         cp -rf "$TMP_UNPACK_DIR/sync/"* "$RIME_DIR/sync/" 2>/dev/null || true
       fi
+
+      # 暂存远端 custom_phrase 供第 3 步增量合并
       if [ -f "$TMP_UNPACK_DIR/custom_phrase.txt" ]; then
         cp -f "$TMP_UNPACK_DIR/custom_phrase.txt" "$SCRIPT_DIR/custom_phrase.txt.remote" 2>/dev/null || true
       fi
+
       rm -rf "$TMP_UNPACK_DIR"
       echo -e "${GREEN}🔓 隐私短语与自造词已成功解密同步！${NC}"
+    else
+      rm -rf "$TMP_UNPACK_DIR" "$TMP_DEC"
+      echo -e "${RED}❌ 严重错误：远端私密数据包 (vault.enc) 解密失败！${NC}"
+      echo -e "${YELLOW}🔑 原因：当前保存的同步密码与远端不匹配（或密文损坏）。${NC}"
+      echo -e "${YELLOW}🛡️ 安全保护触发：已紧急终止同步，绝不拿未解密的旧数据覆盖本地！${NC}"
+      echo -e "${YELLOW}💡 解决方案：请在终端运行 ./sync.sh --reset-pass 重新输入正确密码。${NC}"
+      notify_user "Rime 词频同步" "解密失败" "❌ 密码错误无法解密远端数据，请运行 ./sync.sh --reset-pass"
+      exit 1
     fi
   fi
 fi
@@ -274,6 +306,7 @@ def load_file(fp):
                     phrase_map[(w_phrase, w_sc)] = w_weight
 
 # 1. 优先读取已存在的 custom_phrase.txt (保留来自 Windows 端与云端同步的短语)
+load_file('$SCRIPT_DIR/custom_phrase.txt.remote')
 load_file('$SCRIPT_DIR/custom_phrase.txt')
 load_file('$RIME_DIR/custom_phrase.txt')
 
@@ -317,6 +350,10 @@ for p in ['$SCRIPT_DIR/custom_phrase.txt', '$RIME_DIR/custom_phrase.txt']:
     if os.path.isdir(os.path.dirname(p)):
         with open(p, 'w', encoding='utf-8') as f:
             f.write(merged_content)
+
+if os.path.exists('$SCRIPT_DIR/custom_phrase.txt.remote'):
+    try: os.remove('$SCRIPT_DIR/custom_phrase.txt.remote')
+    except: pass
 
 print(len(phrase_map))
 " 2>/dev/null || echo "0")
