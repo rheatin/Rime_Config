@@ -338,8 +338,17 @@ if [ "$PLATFORM" = "macos" ]; then
   fi
   chmod +x "$TARGET_REPO_DIR/sync.sh" 2>/dev/null || true
 
+  INSTALLATION_ID="MBA"
+  if [ -f "$RIME_DIR/installation.yaml" ]; then
+    FOUND_ID=$(awk -F': ' '/installation_id:/ {gsub(/["'\'' ]/, "", $2); print $2}' "$RIME_DIR/installation.yaml" 2>/dev/null || true)
+    if [ -n "$FOUND_ID" ]; then INSTALLATION_ID="$FOUND_ID"; fi
+  fi
+  DEVICE_SYNC_DIR="$RIME_DIR/sync/$INSTALLATION_ID"
+  mkdir -p "$DEVICE_SYNC_DIR"
+
   sed -e "s|TARGET_SCRIPT_PATH|$TARGET_REPO_DIR/sync.sh|g" \
       -e "s|TARGET_SYNC_PATH|$RIME_DIR/sync|g" \
+      -e "s|TARGET_DEVICE_SYNC_PATH|$DEVICE_SYNC_DIR|g" \
       "$SCRIPT_DIR/com.rheatin.rime.sync.plist" > "$PLIST_FILE"
 
   launchctl unload "$PLIST_FILE" 2>/dev/null || true

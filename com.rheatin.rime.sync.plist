@@ -13,6 +13,7 @@
     <key>WatchPaths</key>
     <array>
         <string>TARGET_SYNC_PATH</string>
+        <string>TARGET_DEVICE_SYNC_PATH</string>
     </array>
     <key>ThrottleInterval</key>
     <integer>5</integer>

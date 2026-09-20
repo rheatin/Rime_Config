@@ -25,6 +25,22 @@ for arg in "$@"; do
   fi
 done
 
+# 发送系统通知 (macOS / Linux)
+notify_user() {
+  local title="${1:-Rime 词频同步}"
+  local subtitle="$2"
+  local message="$3"
+  if [ "$(uname -s)" = "Darwin" ]; then
+    if [ -n "$subtitle" ]; then
+      osascript -e "display notification \"$message\" with title \"$title\" subtitle \"$subtitle\"" 2>/dev/null || true
+    else
+      osascript -e "display notification \"$message\" with title \"$title\"" 2>/dev/null || true
+    fi
+  elif [ "$(uname -s)" = "Linux" ] && command -v notify-send >/dev/null 2>&1; then
+    notify-send "$title" "$message" 2>/dev/null || true
+  fi
+}
+
 # 获取用户同步口令（支持交互输入、系统钥匙串记忆与免输）
 get_vault_pass() {
   # 1. 优先从环境变量读取
@@ -221,6 +237,7 @@ git add vault.enc custom_phrase.example.txt snippets.yaml snippets.custom.exampl
 
 if git diff-index --quiet HEAD --; then
   echo -e "${GREEN}✨ 词频与短语已是最新，无新增改动。${NC}"
+  notify_user "Rime 词频同步" "已是最新" "✨ 自造词与短语均已保持最新状态！"
 else
   git commit -m "sync: 自动同步加密词频与文本替换短语 $(date '+%Y-%m-%d %H:%M:%S')"
   
@@ -231,16 +248,16 @@ else
       break
     else
       echo "推送重试 ($i/3)..."
+      git pull --rebase origin main 2>/dev/null || true
       sleep 2
     fi
   done
 
   if [ "$PUSH_SUCCESS" = true ]; then
     echo -e "${GREEN}🎉 密文词频包已成功推送到远程仓库！${NC}"
-    if [ "$(uname -s)" = "Darwin" ]; then
-      osascript -e 'display notification "自造词与短语已安全加密备份到 GitHub！" with title "Rime 词频同步"' 2>/dev/null || true
-    fi
+    notify_user "Rime 词频同步" "同步成功" "🎉 词频与私有短语已安全加密备份到 GitHub！"
   else
     echo "⚠️ 推送失败，请检查网络连接。"
+    notify_user "Rime 词频同步" "推送失败" "⚠️ 词频加密包推送失败，请检查网络连接。"
   fi
 fi

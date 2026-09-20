@@ -259,9 +259,23 @@ if (Test-Path (Join-Path $ScriptDir ".git")) {
             } catch {}
         } else {
             Log-Message "❌ Git Push 失败，请检查网络或 GitHub 权限。"
+            try {
+                [void] [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms")
+                $Notify = New-Object System.Windows.Forms.NotifyIcon
+                $Notify.Icon = [System.Drawing.SystemIcons]::Warning
+                $Notify.Visible = $true
+                $Notify.ShowBalloonTip(3000, "Rime 词频同步", "⚠️ 词频加密包推送失败，请检查网络连接。", [System.Windows.Forms.ToolTipIcon]::Warning)
+            } catch {}
         }
     } else {
         Log-Message "✨ 词频已是最新，无新增改动。"
+        try {
+            [void] [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms")
+            $Notify = New-Object System.Windows.Forms.NotifyIcon
+            $Notify.Icon = [System.Drawing.SystemIcons]::Information
+            $Notify.Visible = $true
+            $Notify.ShowBalloonTip(3000, "Rime 词频同步", "✨ 自造词与短语已是最新状态，已同步完成！", [System.Windows.Forms.ToolTipIcon]::Info)
+        } catch {}
     }
     Pop-Location
 }
