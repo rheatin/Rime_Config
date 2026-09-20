@@ -42,6 +42,24 @@ if ($Cmd) {
     }
 }
 
+function Invoke-WeaselCommand {
+    param([string]$Argument)
+    $Deployer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime", "${env:ProgramFiles}\Rime" -Filter "WeaselDeployer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($Deployer) {
+        try {
+            $psi = New-Object System.Diagnostics.ProcessStartInfo
+            $psi.FileName = $Deployer.FullName
+            $psi.Arguments = $Argument
+            $psi.CreateNoWindow = $true
+            $psi.UseShellExecute = $false
+            $proc = [System.Diagnostics.Process]::Start($psi)
+            $proc.WaitForExit()
+        } catch {
+            & $Deployer.FullName $Argument
+        }
+    }
+}
+
 function Merge-SnippetYaml {
     param([string[]]$FilePaths, [string[]]$OutPaths)
     
@@ -194,10 +212,7 @@ function Get-VaultPass {
 # 1. 如果是手动运行，先触发 WeaselDeployer
 if (-not $Auto) {
     Log-Message "手动触发模式：正在调用小狼毫导出..."
-    $Deployer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime", "${env:ProgramFiles}\Rime" -Filter "WeaselDeployer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($Deployer) {
-        Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$($Deployer.FullName)`" /sync" -WindowStyle Hidden -Wait
-    }
+    Invoke-WeaselCommand "/sync"
 } else {
     Log-Message "自动监听模式：等待 WeaselDeployer 写入完成..."
     $WaitCount = 0
@@ -245,11 +260,29 @@ if ((Test-Path $VaultEnc) -and $OpenSSL) {
                 tar -xzf $TempTar -C $TempUnpackDir 2>$null
                 Remove-Item -Path $TempTar -Force -ErrorAction SilentlyContinue
 
-                # 智能双向合并 snippets.custom.yaml (融合本地修改与远端解密)
+                # 智能双向合并 snippets.custom.yaml (远端先加载，本地修改最后加载以保证最新修改压制旧数据)
                 $RepoCustom = Join-Path $ScriptDir "snippets.custom.yaml"
                 $RimeCustom = Join-Path $RimeDir "snippets.custom.yaml"
                 $DecCustom = Join-Path $TempUnpackDir "snippets.custom.yaml"
-                Merge-SnippetYaml -FilePaths @($RepoCustom, $RimeCustom, $DecCustom) -OutPaths @($RepoCustom, $RimeCustom)
+
+                $MergeList = [System.Collections.Generic.List[string]]::new()
+                if (Test-Path $DecCustom) { [void]$MergeList.Add($DecCustom) }
+
+                if ((Test-Path $RimeCustom) -and (Test-Path $RepoCustom)) {
+                    if ((Get-Item $RimeCustom).LastWriteTime -ge (Get-Item $RepoCustom).LastWriteTime) {
+                        [void]$MergeList.Add($RepoCustom)
+                        [void]$MergeList.Add($RimeCustom)
+                    } else {
+                        [void]$MergeList.Add($RimeCustom)
+                        [void]$MergeList.Add($RepoCustom)
+                    }
+                } elseif (Test-Path $RimeCustom) {
+                    [void]$MergeList.Add($RimeCustom)
+                } elseif (Test-Path $RepoCustom) {
+                    [void]$MergeList.Add($RepoCustom)
+                }
+
+                Merge-SnippetYaml -FilePaths $MergeList.ToArray() -OutPaths @($RepoCustom, $RimeCustom)
 
                 # 合并词频目录
                 $DecSync = Join-Path $TempUnpackDir "sync"
@@ -453,10 +486,7 @@ if (Test-Path (Join-Path $ScriptDir ".git")) {
 
 if ($ConfigUpdated) {
     Log-Message "正在触发小狼毫重新部署以使最新配置与短语生效..."
-    $Deployer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime", "${env:ProgramFiles}\Rime" -Filter "WeaselDeployer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($Deployer) {
-        Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$($Deployer.FullName)`" /deploy" -WindowStyle Hidden -Wait
-    }
+    Invoke-WeaselCommand "/deploy"
 }
 
 Log-Message "===== 同步流程结束 =====`n"

@@ -187,11 +187,20 @@ def merge_yaml(files):
             with open(p, 'w', encoding='utf-8') as f:
                 f.write(content)
 
-merge_yaml([
-    '$SCRIPT_DIR/snippets.custom.yaml',
-    '$RIME_DIR/snippets.custom.yaml',
-    '$TMP_UNPACK_DIR/snippets.custom.yaml'
-])
+files_to_merge = []
+if os.path.exists('$TMP_UNPACK_DIR/snippets.custom.yaml'):
+    files_to_merge.append('$TMP_UNPACK_DIR/snippets.custom.yaml')
+
+locals_list = [f for f in ['$SCRIPT_DIR/snippets.custom.yaml', '$RIME_DIR/snippets.custom.yaml'] if os.path.exists(f)]
+if len(locals_list) == 2:
+    if os.path.getmtime(locals_list[0]) > os.path.getmtime(locals_list[1]):
+        files_to_merge.extend([locals_list[1], locals_list[0]])
+    else:
+        files_to_merge.extend([locals_list[0], locals_list[1]])
+elif len(locals_list) == 1:
+    files_to_merge.append(locals_list[0])
+
+merge_yaml(files_to_merge)
 " 2>/dev/null || true
 
       # 复制同步过来的 sync 词频与短语
