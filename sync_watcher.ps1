@@ -115,8 +115,9 @@ $Action = {
     }
 
     if (Test-Path $ScriptToRun) {
-        Add-Content -Path $Log -Value "[$Time] 🚀 正在后台唤起: $ScriptToRun -Auto" -ErrorAction SilentlyContinue
-        Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$ScriptToRun`" -Auto" -WindowStyle Hidden
+        $PsExe = if (Get-Command pwsh -ErrorAction SilentlyContinue) { "pwsh.exe" } else { "powershell.exe" }
+        Add-Content -Path $Log -Value "[$Time] 🚀 正在后台唤起 ($PsExe): $ScriptToRun -Auto" -ErrorAction SilentlyContinue
+        Start-Process $PsExe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$ScriptToRun`" -Auto" -WindowStyle Hidden
     } else {
         Add-Content -Path $Log -Value "[$Time] ❌ 未找到同步脚本: $ScriptToRun" -ErrorAction SilentlyContinue
     }

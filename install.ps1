@@ -378,7 +378,8 @@ if ($SourceDir -ne $PermanentConfigDir) {
     }
 }
 
-$VbsContent = "CreateObject(`"Wscript.Shell`").Run `"powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"`"$WatcherScriptPath`"`"`", 0, False"
+$PsExe = if (Get-Command pwsh -ErrorAction SilentlyContinue) { "pwsh.exe" } else { "powershell.exe" }
+$VbsContent = "CreateObject(`"Wscript.Shell`").Run `"$PsExe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"`"$WatcherScriptPath`"`"`", 0, False"
 Set-Content -Path $VbsPath -Value $VbsContent -Encoding ASCII
 
 Start-Process "wscript.exe" -ArgumentList "`"$VbsPath`"" -WindowStyle Hidden
