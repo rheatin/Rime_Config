@@ -134,7 +134,11 @@ if ((Test-Path $VaultEnc) -and $OpenSSL) {
         Log-Message "正在解密隐私数据包 (vault.enc)..."
         $TempTar = Join-Path $env:TEMP "rime_vault_dec.tar.gz"
         try {
-            & $OpenSSL enc -d -aes-256-cbc -salt -pbkdf2 -pass "pass:$VaultPass" -in $VaultEnc -out $TempTar 2>$null
+            $env:RIME_VAULT_PASS = $VaultPass
+            & $OpenSSL enc -d -aes-256-cbc -salt -pbkdf2 -pass env:RIME_VAULT_PASS -in $VaultEnc -out $TempTar 2>$null
+            if (-not (Test-Path $TempTar)) {
+                & $OpenSSL enc -d -aes-256-cbc -salt -pbkdf2 -pass "pass:$VaultPass" -in $VaultEnc -out $TempTar 2>$null
+            }
             if (-not (Test-Path $TempTar)) {
                 $VaultPass | & $OpenSSL enc -d -aes-256-cbc -salt -pbkdf2 -pass stdin -in $VaultEnc -out $TempTar 2>$null
             }
@@ -261,7 +265,8 @@ if ($OpenSSL) {
             Push-Location $ScriptDir
             tar -czf $TempTar custom_phrase.txt snippets.custom.yaml sync 2>$null
             if (Test-Path $TempTar) {
-                & $OpenSSL enc -aes-256-cbc -salt -pbkdf2 -pass "pass:$VaultPass" -in $TempTar -out $VaultEnc 2>$null
+                $env:RIME_VAULT_PASS = $VaultPass
+                & $OpenSSL enc -aes-256-cbc -salt -pbkdf2 -pass env:RIME_VAULT_PASS -in $TempTar -out $VaultEnc 2>$null
                 Remove-Item -Path $TempTar -Force -ErrorAction SilentlyContinue
                 Log-Message "🔒 隐私短语、私有片段与词频已成功通过 AES-256 加密打包 (vault.enc)！"
             }

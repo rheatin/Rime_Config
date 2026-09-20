@@ -118,8 +118,11 @@ fi
 if [ -f "$SCRIPT_DIR/vault.enc" ]; then
   VAULT_PASS=$(get_vault_pass || true)
   if [ -n "$VAULT_PASS" ]; then
+    export RIME_VAULT_PASS="$VAULT_PASS"
     TMP_DEC="/tmp/rime_vault_dec_$$.tar.gz"
-    if openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass "pass:$VAULT_PASS" -in "$SCRIPT_DIR/vault.enc" -out "$TMP_DEC" 2>/dev/null || echo "$VAULT_PASS" | openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass stdin -in "$SCRIPT_DIR/vault.enc" -out "$TMP_DEC" 2>/dev/null; then
+    if openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass env:RIME_VAULT_PASS -in "$SCRIPT_DIR/vault.enc" -out "$TMP_DEC" 2>/dev/null || \
+       openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass "pass:$VAULT_PASS" -in "$SCRIPT_DIR/vault.enc" -out "$TMP_DEC" 2>/dev/null || \
+       echo "$VAULT_PASS" | openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass stdin -in "$SCRIPT_DIR/vault.enc" -out "$TMP_DEC" 2>/dev/null; then
       tar -xzf "$TMP_DEC" -C "$SCRIPT_DIR" 2>/dev/null || true
       rm -f "$TMP_DEC"
       echo -e "${GREEN}🔓 隐私短语与自造词已成功解密同步！${NC}"
@@ -247,10 +250,13 @@ fi
 # 将 custom_phrase.txt、snippets.custom.yaml 与 sync/ 打包加密为 vault.enc
 VAULT_PASS=$(get_vault_pass || true)
 if [ -n "$VAULT_PASS" ]; then
+  export RIME_VAULT_PASS="$VAULT_PASS"
   TMP_TAR="/tmp/rime_vault_$$.tar.gz"
   tar -czf "$TMP_TAR" -C "$SCRIPT_DIR" custom_phrase.txt snippets.custom.yaml sync 2>/dev/null || true
   if [ -f "$TMP_TAR" ]; then
-    openssl enc -aes-256-cbc -salt -pbkdf2 -pass "pass:$VAULT_PASS" -in "$TMP_TAR" -out "$SCRIPT_DIR/vault.enc" 2>/dev/null || echo "$VAULT_PASS" | openssl enc -aes-256-cbc -salt -pbkdf2 -pass stdin -in "$TMP_TAR" -out "$SCRIPT_DIR/vault.enc" 2>/dev/null || true
+    openssl enc -aes-256-cbc -salt -pbkdf2 -pass env:RIME_VAULT_PASS -in "$TMP_TAR" -out "$SCRIPT_DIR/vault.enc" 2>/dev/null || \
+    openssl enc -aes-256-cbc -salt -pbkdf2 -pass "pass:$VAULT_PASS" -in "$TMP_TAR" -out "$SCRIPT_DIR/vault.enc" 2>/dev/null || \
+    echo "$VAULT_PASS" | openssl enc -aes-256-cbc -salt -pbkdf2 -pass stdin -in "$TMP_TAR" -out "$SCRIPT_DIR/vault.enc" 2>/dev/null || true
     rm -f "$TMP_TAR"
     echo -e "${GREEN}🔒 隐私短语、私有片段与自造词已成功通过 AES-256 加密保护 (vault.enc)！${NC}"
   fi
