@@ -78,17 +78,31 @@ get_vault_pass() {
     return 1
   fi
 
-  # 4. 交互式提示用户输入密码
-  echo "" >&2
-  echo -e "${BLUE}====================================================${NC}" >&2
-  echo -e "${YELLOW}🔒 Rime 隐私数据加密同步 (首次配置 / 验证)${NC}" >&2
-  echo -e "请输入你的同步密码 (Windows 与 Mac 端输入相同密码即可自动互通)：" >&2
-  read -s -p "🔑 请输入密码: " INPUT_PASS >&2
-  echo "" >&2
-  if [ -z "$INPUT_PASS" ]; then
-    echo -e "${YELLOW}⚠️ 未输入密码，本次跳过加密隐私数据同步。${NC}" >&2
-    return 1
-  fi
+  # 4. 交互式提示用户输入密码 (支持二次确认防输错)
+  local INPUT_PASS=""
+  local CONFIRM_PASS=""
+  while true; do
+    echo "" >&2
+    echo -e "${BLUE}====================================================${NC}" >&2
+    echo -e "${YELLOW}🔒 Rime 隐私数据加密同步 (首次配置 / 密码验证)${NC}" >&2
+    echo -e "请输入你的同步密码 (Windows 与 Mac 端输入相同密码即可自动互通)：" >&2
+    read -s -p "🔑 请输入密码: " INPUT_PASS >&2
+    echo "" >&2
+    if [ -z "$INPUT_PASS" ]; then
+      echo -e "${YELLOW}⚠️ 未输入密码，本次跳过加密隐私数据同步。${NC}" >&2
+      return 1
+    fi
+
+    read -s -p "🔑 请再次输入密码以确认: " CONFIRM_PASS >&2
+    echo "" >&2
+
+    if [ "$INPUT_PASS" = "$CONFIRM_PASS" ]; then
+      echo -e "${GREEN}✅ 两次密码输入一致！${NC}" >&2
+      break
+    else
+      echo -e "${RED}❌ 两次输入的密码不一致，请重新输入！${NC}" >&2
+    fi
+  done
 
   # 询问是否记住密码
   read -p "是否记住该密码（下次同步免输入，将安全存入系统钥匙串）[Y/n]? " REMEMBER >&2

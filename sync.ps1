@@ -73,16 +73,29 @@ function Get-VaultPass {
         return $null
     }
 
-    # 4. 交互提示用户输入密码
-    Write-Host "`n====================================================" -ForegroundColor Cyan
-    Write-Host "🔒 Rime 隐私数据加密同步 (首次配置 / 验证)" -ForegroundColor Yellow
-    Write-Host "请输入你的同步密码 (与 Mac 端设置的密码一致即可自动互通)："
-    $SecurePass = Read-Host "🔑 请输入密码" -AsSecureString
-    $PlainPass = [System.Net.NetworkCredential]::new("", $SecurePass).Password
+    # 4. 交互提示用户输入密码 (支持二次确认防输错)
+    $PlainPass = $null
+    while ($true) {
+        Write-Host "`n====================================================" -ForegroundColor Cyan
+        Write-Host "🔒 Rime 隐私数据加密同步 (首次配置 / 密码验证)" -ForegroundColor Yellow
+        Write-Host "请输入你的同步密码 (与 Mac 端设置的密码一致即可自动互通)："
+        $SecurePass = Read-Host "🔑 请输入密码" -AsSecureString
+        $PlainPass = [System.Net.NetworkCredential]::new("", $SecurePass).Password
 
-    if (-not $PlainPass) {
-        Write-Host "⚠️ 未输入密码，本次跳过加密隐私数据同步。" -ForegroundColor Yellow
-        return $null
+        if (-not $PlainPass) {
+            Write-Host "⚠️ 未输入密码，本次跳过加密隐私数据同步。" -ForegroundColor Yellow
+            return $null
+        }
+
+        $SecurePassConfirm = Read-Host "🔑 请再次输入密码以确认" -AsSecureString
+        $PlainPassConfirm = [System.Net.NetworkCredential]::new("", $SecurePassConfirm).Password
+
+        if ($PlainPass -eq $PlainPassConfirm) {
+            Write-Host "✅ 两次密码输入一致！" -ForegroundColor Green
+            break
+        } else {
+            Write-Host "❌ 两次输入的密码不一致，请重新输入！`n" -ForegroundColor Red
+        }
     }
 
     # 询问是否记住密码
@@ -121,7 +134,11 @@ if (-not $Auto) {
 if (Test-Path (Join-Path $ScriptDir ".git")) {
     Push-Location $ScriptDir
     try {
-        git pull --rebase origin main 2>&1 | Out-String | ForEach-Object { Log-Message "Git Pull: $_" }
+        $prevEAP = $ErrorActionPreference
+        $ErrorActionPreference = "SilentlyContinue"
+        $PullOut = (& git pull --rebase origin main 2>&1) | Out-String
+        $ErrorActionPreference = $prevEAP
+        if ($PullOut) { Log-Message "Git Pull: $($PullOut.Trim())" }
     } catch {}
     Pop-Location
 }
@@ -284,10 +301,13 @@ if (Test-Path (Join-Path $ScriptDir ".git")) {
     $Status = git status --porcelain
     
     if ($Status) {
-        git commit -m "sync(windows): 自动同步加密词频与短语 $DateStr" 2>&1 | Out-String | ForEach-Object { Log-Message "Git Commit: $_" }
-        
-        $PushOut = git push origin main 2>&1 | Out-String
-        Log-Message "Git Push 结果: $PushOut"
+        $prevEAP = $ErrorActionPreference
+        $ErrorActionPreference = "SilentlyContinue"
+        $CommitOut = (& git commit -m "sync(windows): 自动同步加密词频与短语 $DateStr" 2>&1) | Out-String
+        $PushOut = (& git push origin main 2>&1) | Out-String
+        $ErrorActionPreference = $prevEAP
+        if ($CommitOut) { Log-Message "Git Commit: $($CommitOut.Trim())" }
+        if ($PushOut) { Log-Message "Git Push 结果: $($PushOut.Trim())" }
         
         if ($LASTEXITCODE -eq 0) {
             Log-Message "🎉 同步并推送到 GitHub 成功！"
