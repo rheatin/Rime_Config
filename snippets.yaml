@@ -33,50 +33,6 @@
           main()
     desc: Python 主函数执行入口
 
-/node:
-  - text: |
-      #!/usr/bin/env node
-      import { fileURLToPath } from "node:url";
-      import path from "node:path";
-    desc: Node.js (ESM) 脚本头部模板
-
-/curl:
-  - text: 'curl -fsSL -H "Content-Type: application/json" -X POST -d ''{}'' '
-    desc: cURL POST JSON 请求模板
-  - text: 'curl -fsSL -H "Accept: application/json" '
-    desc: cURL GET 请求模板
-
-/headers:
-  - text: '-H "Content-Type: application/json" -H "Authorization: Bearer "'
-    desc: HTTP JSON 与 Bearer Token 请求头
-
-/sql:
-  - text: |
-      SELECT id, name, created_at
-      FROM table_name
-      WHERE status = 1
-      ORDER BY id DESC
-      LIMIT 20 OFFSET 0;
-    desc: 标准 SQL 分页查询语句
-
-/docker:
-  - text: |
-      FROM alpine:latest
-      WORKDIR /app
-      COPY . .
-      CMD ["sh"]
-    desc: Dockerfile 极简基础模板
-
-/compose:
-  - text: |
-      services:
-        app:
-          image: nginx:alpine
-          ports:
-            - "8080:80"
-          restart: unless-stopped
-    desc: Docker Compose 服务编排模板
-
 /ignore:
   - text: |
       .DS_Store
@@ -89,6 +45,20 @@
       .idea/
       .vscode/
     desc: 常见跨平台通用的 .gitignore 忽略规则
+
+/anc: # comment anchors
+  - text: |
+      > [TODO]: 
+      > 注意：这里填写可能引发意外的操作风险。
+    desc: GitHub / Obsidian 待办块 (TODO)
+  - text: |
+      > [NOTE]: 
+      > 这里填写需要特别强调的重点提示信息。
+    desc: GitHub / Obsidian 提示块 (Note)
+  - text: |
+      > [FIXME]: 
+      > 注意：这里填写可能引发意外的操作风险。
+    desc: GitHub / Obsidian 待修复块 (Fixme) 
 
 # ─── 2. Git 提交规范与协作 (Git Workflow) ────────────────────────────────────
 /git:
@@ -130,12 +100,8 @@
     desc: GitHub / GitLab 标准 PR 描述模板
 
 /review:
-  - text: "LGTM! Looks great to me, ready to merge! 🚀"
-    desc: Code Review: 赞同合并 (LGTM)
-  - text: "PTAL (Please Take Another Look) when you have a moment, thanks!"
-    desc: Code Review: 请求再次查阅 (PTAL)
-  - text: "Nit: "
-    desc: Code Review: 细微建议/可改可不改 (Nit)
+  - text: "No concern from my side."
+    desc: GitHub / GitLab 代码评审标准回复模板
 
 # ─── 3. Markdown 排版与文档设计 (Markdown & Layout) ──────────────────────────
 /table:
@@ -146,40 +112,6 @@
       | 属性 B | Number | 可选配置项 |
     desc: Markdown 三列表格模板
 
-/callout:
-  - text: |
-      > [!NOTE]
-      > 这里填写需要特别强调的重点提示信息。
-    desc: GitHub / Obsidian 提示块 (Note)
-  - text: |
-      > [!TIP]
-      > 这里填写有用的使用技巧或进阶捷径。
-    desc: GitHub / Obsidian 技巧块 (Tip)
-  - text: |
-      > [!WARNING]
-      > 注意：这里填写可能引发意外的操作风险。
-    desc: GitHub / Obsidian 警告块 (Warning)
-
-/diff:
-  - text: |
-      ```diff
-      + ╔══════════════════════════════════════════════════════════╗
-      + ║ ▶ [✔] 1. 选中项 / 推荐方案名称                             ║
-      + ║       核心说明与高优先级内容                                ║
-      + ╚══════════════════════════════════════════════════════════╝
-        [ ] 2. 备选项 B
-      ```
-    desc: Diff 高对比双线语法高亮框 (AGENTS 规范)
-
-/details:
-  - text: |
-      <details>
-      <summary><b>点击展开查看详情 (Details)</b></summary>
-
-      这里放置折叠的内容或详细长篇排版。
-
-      </details>
-    desc: HTML 优雅折叠手风琴模板
 
 /todo:
   - text: |
@@ -188,14 +120,7 @@
       - [x] 
     desc: Markdown 待办勾选清单
 
-/kbd:
-  - text: "<kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd>"
-    desc: 键盘快捷键按键排版标签
-
 # ─── 4. 职场邮件与高效沟通 (Work & Communication) ────────────────────────────
-/mail:
-  - text: your_email@example.com
-    desc: 个人邮箱模板 (可在 snippets.custom.yaml 中覆盖为真实邮箱)
 
 /sign:
   - text: |
@@ -213,33 +138,14 @@
   - text: "非常感谢您的支持与协助！"
     desc: 中文商务感谢致谢
 
-/meet:
-  - text: |
-      【会议主题】：
-      【会议时间】：
-      【参会人员】：
-      【腾讯会议/链接】：
-      【核心议程】：
-      1. 
-      2. 
-    desc: 标准化会议邀请与议程通知模板
-
 /afk:
   - text: "您好，我目前暂时外出/休假中，稍后会尽快回复您的消息。如有紧急事务，请致电联系，谢谢！"
     desc: 临时外出 / 休假自动回复话术
 
 # ─── 5. 测试数据、占位与网络信息 (Mock & Network) ─────────────────────────────
-/ip:
-  - text: "127.0.0.1"
-    desc: IPv4 本机回环地址 (Localhost)
-  - text: "0.0.0.0"
-    desc: 全网监听通配地址 (All Interfaces)
-  - text: "192.168.1.1"
-    desc: 常用家庭网关路由地址
-  - text: "1.1.1.1"
-    desc: Cloudflare 高速 Public DNS
-  - text: "8.8.8.8"
-    desc: Google Public DNS
+/mask:
+  - text: "255.255.255.0"
+    desc: IPv4 子网掩码
 
 /mock:
   - text: |
@@ -257,11 +163,11 @@
 
 /lorem:
   - text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
-    desc: 标准经典拉丁占位假文
+    desc: 拉丁占位假文
   - text: "昔人已乘黄鹤去，此地空余黄鹤楼。黄鹤一去不复返，白云千载空悠悠。晴川历历汉阳树，芳草萋萋鹦鹉洲。"
-    desc: 中文排版占位假文（黄鹤楼）
+    desc: 中文占位假文（黄鹤楼）
   - text: "君不见，黄河之水天上来，奔流到海不复回。君不见，高堂明镜悲白发，朝如青丝暮成雪。"
-    desc: 中文长句占位假文（将进酒）
+    desc: 中文占位假文（将进酒）
 
 /line:
   - text: "────────────────────────────────────────────────────────"
