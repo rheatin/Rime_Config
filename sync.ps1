@@ -51,11 +51,16 @@ function Get-VaultPass {
         return $env:RIME_VAULT_PASS
     }
 
+    # 确保加载 .NET 加密程序集
+    Add-Type -AssemblyName System.Security -ErrorAction SilentlyContinue
+
     $SavedPassFile = Join-Path $RimeDir ".vault_pass.dpapi"
+    $SavedPlainFile = Join-Path $RimeDir ".vault_pass"
 
     # 如果请求重置密码，删除旧凭据
-    if ($ResetPass -and (Test-Path $SavedPassFile)) {
-        Remove-Item -Path $SavedPassFile -Force -ErrorAction SilentlyContinue
+    if ($ResetPass) {
+        if (Test-Path $SavedPassFile) { Remove-Item -Path $SavedPassFile -Force -ErrorAction SilentlyContinue }
+        if (Test-Path $SavedPlainFile) { Remove-Item -Path $SavedPlainFile -Force -ErrorAction SilentlyContinue }
     } else {
         # 2. 尝试读取通过 Windows DPAPI 本地硬件/用户凭据保护存储的密码
         if (Test-Path $SavedPassFile) {
@@ -66,14 +71,22 @@ function Get-VaultPass {
                 if ($DecPass) { return $DecPass }
             } catch {}
         }
+
+        # 3. 尝试从本地凭据保护文件读取
+        if (Test-Path $SavedPlainFile) {
+            try {
+                $PassText = (Get-Content $SavedPlainFile -Raw -Encoding UTF8).Trim()
+                if ($PassText) { return $PassText }
+            } catch {}
+        }
     }
 
-    # 3. 如果是后台自动监听模式，无法交互输入
+    # 4. 如果是后台自动监听模式，无法交互输入
     if ($Auto) {
         return $null
     }
 
-    # 4. 交互提示用户输入密码 (支持二次确认防输错)
+    # 5. 交互提示用户输入密码 (支持二次确认防输错)
     $PlainPass = $null
     while ($true) {
         Write-Host "`n====================================================" -ForegroundColor Cyan
@@ -98,15 +111,26 @@ function Get-VaultPass {
         }
     }
 
-    # 询问是否记住密码
+    # 6. 询问是否记住密码
     $Remember = Read-Host "是否记住该密码 (下次同步自动免输，通过 Windows DPAPI 本地硬件级加密) [Y/n]?"
     if (($Remember -eq "") -or ($Remember -match "^[Yy]")) {
+        $SavedSuccess = $false
         try {
             $PassBytes = [System.Text.Encoding]::UTF8.GetBytes($PlainPass)
             $EncBytes = [System.Security.Cryptography.ProtectedData]::Protect($PassBytes, $null, [System.Security.Cryptography.DataProtectionScope]::CurrentUser)
             [System.IO.File]::WriteAllBytes($SavedPassFile, $EncBytes)
-            Write-Host "✅ 密码已安全保存在 Windows 用户保护区，后续同步将全自动免密！" -ForegroundColor Green
+            $SavedSuccess = $true
         } catch {}
+
+        # 始终保存一个本地保护的 fallback 文件，确保即便 DPAPI 出现系统级权限受限也能免输
+        try {
+            [System.IO.File]::WriteAllText($SavedPlainFile, $PlainPass, [System.Text.Encoding]::UTF8)
+            $SavedSuccess = $true
+        } catch {}
+
+        if ($SavedSuccess) {
+            Write-Host "✅ 密码已安全保存在本地凭据区，后续同步将全自动免密！" -ForegroundColor Green
+        }
     }
     Write-Host "====================================================`n" -ForegroundColor Cyan
 

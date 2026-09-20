@@ -10,6 +10,7 @@ sync/
 *.enc.tmp
 .rime_vault_key
 .vault_key
+.vault_pass*
 
 # 系统与开发工具垃圾
 .DS_Store
