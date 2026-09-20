@@ -282,6 +282,9 @@ if [ -f "$SCRIPT_DIR/custom_phrase.txt" ]; then
 elif [ -f "$SCRIPT_DIR/custom_phrase.example.txt" ]; then
   cp -f "$SCRIPT_DIR/custom_phrase.example.txt" "$RIME_DIR/custom_phrase.txt"
 fi
+if [ -f "$SCRIPT_DIR/snippets.yaml" ]; then
+  cp -f "$SCRIPT_DIR/snippets.yaml" "$RIME_DIR/"
+fi
 if [ -f "$SCRIPT_DIR/snippets.txt" ]; then
   cp -f "$SCRIPT_DIR/snippets.txt" "$RIME_DIR/"
 fi

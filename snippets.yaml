@@ -1,0 +1,49 @@
+# ==============================================================================
+# 📋 Rime 快速文本与代码片段 (Snippets) 配置文件
+# 格式：以 / 开头的触发词映射为候选项列表
+# 支持使用 | 声明真实多行文本块，无需繁琐的 \n 转义与脆弱的 Tab
+# ==============================================================================
+
+/sh:
+  - text: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+    desc: Bash 脚本头部模板
+
+/py:
+  - text: |
+      #!/usr/bin/env python3
+      # -*- coding: utf-8 -*-
+    desc: Python 脚本头部模板
+
+/git:
+  - text: "✨ Feat: "
+    desc: 新功能/特性
+  - text: "🔧 Fix: "
+    desc: 缺陷/补丁修复
+  - text: "📝 Docs: "
+    desc: 文档/注释更新
+  - text: "💄 UI: "
+    desc: 界面样式/美化
+  - text: "🚀 Update: "
+    desc: 升级/重构优化
+  - text: "⚙️ Chore: "
+    desc: 日常维护/构建
+
+/curl:
+  - text: 'curl -fsSL -H "Content-Type: application/json" -X POST '
+    desc: cURL POST 请求模板
+
+/mail:
+  - text: 125110985@qq.com
+    desc: 个人邮箱落款
+
+/thx:
+  - text: "Thank you for your time and assistance."
+    desc: 英文邮件致谢
+
+/lorem:
+  - text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
+    desc: 标准拉丁占位假文
+  - text: "昔人已乘黄鹤去，此地空余黄鹤楼。黄鹤一去不复返，白云千载空悠悠。"
+    desc: 中文排版占位假文

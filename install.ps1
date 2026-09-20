@@ -245,7 +245,7 @@ Get-ChildItem -Path $SourceDir -Filter "*.custom.yaml" -File -ErrorAction Silent
 Get-ChildItem -Path $SourceDir -Filter "*.dict.yaml" -File -ErrorAction SilentlyContinue | Copy-Item -Destination $RimeDir -Force
 
 # 复制特定 yaml 与 txt 文件
-@("symbols_v.yaml", "snippets.txt", "weasel.custom.yaml") | ForEach-Object {
+@("symbols_v.yaml", "snippets.yaml", "snippets.txt", "weasel.custom.yaml") | ForEach-Object {
     $targetFile = Join-Path $SourceDir $_
     if (Test-Path $targetFile) {
         Copy-Item -Path $targetFile -Destination $RimeDir -Force

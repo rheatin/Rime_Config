@@ -111,15 +111,13 @@ if [ -f "$SCRIPT_DIR/vault.enc" ]; then
   fi
 fi
 
-# 1.2 自动执行平台专一化瘦身清理 (移除非本系统配置文件与冗余方案)
-if [ -f "$SCRIPT_DIR/clean.sh" ]; then
-  bash "$SCRIPT_DIR/clean.sh" --quiet 2>/dev/null || true
-fi
-
-# 1.3 同步最新的 Lua 扩展、代码片段与核心配置文件到当前环境
+# 1.2 同步最新的 Lua 扩展、代码片段与核心配置文件到当前环境
 if [ -d "$SCRIPT_DIR/lua" ]; then
   mkdir -p "$RIME_DIR/lua"
   cp -rf "$SCRIPT_DIR/lua/"* "$RIME_DIR/lua/" 2>/dev/null || true
+fi
+if [ -f "$SCRIPT_DIR/snippets.yaml" ]; then
+  cp -f "$SCRIPT_DIR/snippets.yaml" "$RIME_DIR/" 2>/dev/null || true
 fi
 if [ -f "$SCRIPT_DIR/snippets.txt" ]; then
   cp -f "$SCRIPT_DIR/snippets.txt" "$RIME_DIR/" 2>/dev/null || true
@@ -219,7 +217,7 @@ fi
 # 5. 提交并推送到 GitHub (明文短语与词频由 .gitignore 拦截，仅推送密文)
 echo -e "${BLUE}🚀 5. 正在推送到远程 GitHub 仓库...${NC}"
 cd "$SCRIPT_DIR"
-git add vault.enc custom_phrase.example.txt snippets.txt 2>/dev/null || true
+git add vault.enc custom_phrase.example.txt snippets.yaml snippets.txt 2>/dev/null || true
 
 if git diff-index --quiet HEAD --; then
   echo -e "${GREEN}✨ 词频与短语已是最新，无新增改动。${NC}"

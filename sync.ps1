@@ -145,13 +145,7 @@ if ((Test-Path $VaultEnc) -and $OpenSSL) {
     }
 }
 
-# 2.1 自动执行平台专一化瘦身清理
-$CleanScript = Join-Path $ScriptDir "clean.ps1"
-if (Test-Path $CleanScript) {
-    & $CleanScript -Quiet
-}
-
-# 2.2 检查并应用从 Git 同步过来的最新配置文件、Lua 插件与系统短语
+# 2. 检查并应用从 Git 同步过来的最新配置文件、Lua 插件与系统短语
 $ConfigUpdated = $false
 
 $RepoLua = Join-Path $ScriptDir "lua"
@@ -160,6 +154,16 @@ if (Test-Path $RepoLua) {
     if (-not (Test-Path $DstLua)) { New-Item -ItemType Directory -Path $DstLua -Force | Out-Null }
     Copy-Item -Path (Join-Path $RepoLua "*") -Destination $DstLua -Recurse -Force -ErrorAction SilentlyContinue
     $ConfigUpdated = $true
+}
+
+$RepoSnippetsYaml = Join-Path $ScriptDir "snippets.yaml"
+$RimeSnippetsYaml = Join-Path $RimeDir "snippets.yaml"
+if (Test-Path $RepoSnippetsYaml) {
+    if ((-not (Test-Path $RimeSnippetsYaml)) -or ((Get-FileHash $RepoSnippetsYaml).Hash -ne (Get-FileHash $RimeSnippetsYaml).Hash)) {
+        Log-Message "检测到代码片段库更新: snippets.yaml，正在应用..."
+        Copy-Item -Path $RepoSnippetsYaml -Destination $RimeSnippetsYaml -Force
+        $ConfigUpdated = $true
+    }
 }
 
 $RepoSnippets = Join-Path $ScriptDir "snippets.txt"
@@ -235,7 +239,7 @@ if ($OpenSSL) {
 # 4. 提交并推送到 GitHub (仅提交密文包与脱敏模板)
 if (Test-Path (Join-Path $ScriptDir ".git")) {
     Push-Location $ScriptDir
-    git add vault.enc custom_phrase.example.txt snippets.txt 2>$null
+    git add vault.enc custom_phrase.example.txt snippets.yaml snippets.txt 2>$null
     $Status = git status --porcelain
     
     if ($Status) {
