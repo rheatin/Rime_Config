@@ -12,8 +12,7 @@
 /git	🚀 Update: 	升级/重构优化
 /git	⚙️ Chore: 	日常维护/构建
 /curl	curl -fsSL -H "Content-Type: application/json" -X POST 	cURL POST 请求模板
-/mail	Best regards,\nChar	英文邮件落款
-/mail	祝好，\nChar	中文邮件签名
+/mail	125110985@qq.com	英文邮件落款
 /thx	Thank you for your time and assistance.	英文邮件致谢
 /lorem	Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.	标准拉丁占位假文
 /lorem	昔人已乘黄鹤去，此地空余黄鹤楼。黄鹤一去不复返，白云千载空悠悠。	中文排版占位假文
