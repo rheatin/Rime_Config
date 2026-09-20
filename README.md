@@ -95,8 +95,8 @@ irm https://raw.githubusercontent.com/<YOUR_GITHUB_USERNAME>/Rime_Config/main/in
 ## 🔄 双向词频同步与日常维护 / Sync & Maintenance
 
 ### 1. 词频与短语一键同步
-- **macOS**：在终端运行 `./sync.sh`，或点击状态栏鼠须管菜单的「同步用户数据」；
-- **Windows**：在 PowerShell 运行 `.\sync.ps1`，或右键小狼毫托盘图标选择「用户资料同步」。
+- **macOS**：在终端运行 `./sync.sh`，或点击状态栏鼠须管菜单的「同步用户数据」（由 LaunchAgent 自动触发并发送系统横幅通知）；
+- **Windows**：在 PowerShell 运行 `.\sync.ps1`，或右键小狼毫托盘图标选择「用户资料同步」（由后台守护脚本 `sync_watcher.ps1` 自动捕获并弹出任务栏气泡通知；若守护进程未运行，可执行 `powershell -File .\sync_watcher.ps1 -Install` 启动并注册自启）。
 - 同步脚本会自动完成：Git Pull ➔ AES-256 解密 ➔ 合并词频 ➔ 加密打包 ➔ Git Push ➔ 重新部署。
 
 ### 2. 新增软件分应用中英文适配
