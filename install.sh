@@ -105,24 +105,27 @@ fi
 # 4. 安装/同步 白霜拼音 (rime-frost) 词库底座
 echo -e "${BLUE}❄️  正在同步 白霜拼音 (rime-frost) 官方底座...${NC}"
 mkdir -p "$RIME_DIR"
-if [ -d "$RIME_DIR/.git" ]; then
-  cd "$RIME_DIR"
-  REMOTE_URL="$(git remote get-url origin 2>/dev/null || true)"
-  if [[ "$REMOTE_URL" == *"rime-frost"* ]]; then
-    echo -e "${BLUE}🔄 正在更新现有 rime-frost...${NC}"
-    git pull --ff-only || true
-  else
-    echo -e "${BLUE}📥 切换并克隆 rime-frost 词库底座...${NC}"
-    cd "$HOME"
-    rm -rf "$RIME_DIR/.git"
-    git clone --depth=1 "$RIME_FROST_URL" "$RIME_DIR.tmp"
-    cp -rf "$RIME_DIR.tmp/"* "$RIME_DIR/"
-    cp -rf "$RIME_DIR.tmp/.git" "$RIME_DIR/" 2>/dev/null || true
-    rm -rf "$RIME_DIR.tmp"
-  fi
+TEMP_FROST="$(mktemp -d)"
+
+if git clone --depth=1 "$RIME_FROST_URL" "$TEMP_FROST" 2>/dev/null; then
+  echo -e "${BLUE}📥 正在应用最新白霜拼音词库到 $RIME_DIR...${NC}"
+  cp -rf "$TEMP_FROST/"* "$RIME_DIR/"
+  cp -rf "$TEMP_FROST/.git" "$RIME_DIR/" 2>/dev/null || true
+  rm -rf "$TEMP_FROST"
+  echo -e "${GREEN}✅ 白霜拼音官方词库同步完成！${NC}"
 else
-  echo -e "${BLUE}📥 克隆 rime-frost 词库到 $RIME_DIR...${NC}"
-  git clone --depth=1 "$RIME_FROST_URL" "$RIME_DIR"
+  echo -e "${YELLOW}⚠️ Git 克隆失败，尝试通过 GitHub Zip 压缩包同步...${NC}"
+  FROST_ZIP="/tmp/rime_frost_$$.zip"
+  EXTRACT_DIR="/tmp/rime_frost_extracted_$$"
+  if curl -fsSL "https://github.com/gaboolic/rime-frost/archive/refs/heads/master.zip" -o "$FROST_ZIP"; then
+    mkdir -p "$EXTRACT_DIR"
+    unzip -qo "$FROST_ZIP" -d "$EXTRACT_DIR"
+    cp -rf "$EXTRACT_DIR"/rime-frost-*/* "$RIME_DIR/"
+    rm -rf "$FROST_ZIP" "$EXTRACT_DIR"
+    echo -e "${GREEN}✅ 白霜拼音官方词库解压同步完成！${NC}"
+  else
+    echo -e "${YELLOW}⚠️ 词库网络拉取失败，跳过官方底座更新，继续执行...${NC}"
+  fi
 fi
 
 # 5. 动态获取 GitHub Release 远程 SHA256 并校验万象语言模型
