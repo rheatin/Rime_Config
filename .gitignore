@@ -1,5 +1,4 @@
-# 本地大体积或自动下载的词库
-moe.dict.yaml
+# 本地大体积或自动下载的临时词库
 moe.clean.dict.yaml
 moe.dedup.dict.yaml
 
@@ -14,5 +13,7 @@ sync/
 # 系统与开发工具垃圾
 .DS_Store
 *.tmp
+*.bak
+tools/*.generated.yaml
 installation.yaml
 user.yaml

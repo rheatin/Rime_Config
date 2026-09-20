@@ -91,7 +91,8 @@ irm https://raw.githubusercontent.com/rheatin/Rime_Config/main/install.ps1 | iex
 ├── symbols_v.yaml               # 正统 v 模式符号映射表
 ├── fonts/                       # 思源宋体 Heavy & Symbols Nerd Font 字体库
 ├── tools/
-│   └── New-AppOptions.ps1       # 🪟 扫描运行中/已安装程序，生成 app_options 片段
+│   ├── New-AppOptions.ps1       # 🪟 Windows: 扫描运行中/已安装程序，生成 weasel app_options 片段
+│   └── New-AppOptions.sh        # 🍎 macOS: 扫描运行中/已安装程序，生成/智能合并 squirrel app_options 片段
 ├── docs/
 │   └── 分应用中英文切换.md       # 🪟 Weasel 分应用中英切换原理、修复与自检清单
 ├── sync/                        # 🧠 个人自造词与跨平台词频快照归档
