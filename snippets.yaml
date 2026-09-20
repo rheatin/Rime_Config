@@ -1,49 +1,270 @@
 # ==============================================================================
 # 📋 Rime 快速文本与代码片段 (Snippets) 配置文件
 # 格式：以 / 开头的触发词映射为候选项列表
-# 支持使用 | 声明真实多行文本块，无需繁琐的 \n 转义与脆弱的 Tab
+# 支持使用 | 声明原生多行块文本，无需任何 \n 转义与脆弱的 Tab
 # ==============================================================================
 
+# ─── 1. 开发工程与系统脚本 (Dev & Scripting) ──────────────────────────────────
 /sh:
   - text: |
       #!/usr/bin/env bash
       set -euo pipefail
-    desc: Bash 脚本头部模板
+      IFS=$'\n\t'
+      
+      SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    desc: 严谨健壮的 Bash 脚本头部模板
 
 /py:
   - text: |
       #!/usr/bin/env python3
       # -*- coding: utf-8 -*-
-    desc: Python 脚本头部模板
 
-/git:
-  - text: "✨ Feat: "
-    desc: 新功能/特性
-  - text: "🔧 Fix: "
-    desc: 缺陷/补丁修复
-  - text: "📝 Docs: "
-    desc: 文档/注释更新
-  - text: "💄 UI: "
-    desc: 界面样式/美化
-  - text: "🚀 Update: "
-    desc: 升级/重构优化
-  - text: "⚙️ Chore: "
-    desc: 日常维护/构建
+      import os
+      import sys
+    desc: Python 3 脚本基础头部
+
+/main:
+  - text: |
+      def main():
+          pass
+
+
+      if __name__ == "__main__":
+          main()
+    desc: Python 主函数执行入口
+
+/node:
+  - text: |
+      #!/usr/bin/env node
+      import { fileURLToPath } from "node:url";
+      import path from "node:path";
+    desc: Node.js (ESM) 脚本头部模板
 
 /curl:
-  - text: 'curl -fsSL -H "Content-Type: application/json" -X POST '
-    desc: cURL POST 请求模板
+  - text: 'curl -fsSL -H "Content-Type: application/json" -X POST -d ''{}'' '
+    desc: cURL POST JSON 请求模板
+  - text: 'curl -fsSL -H "Accept: application/json" '
+    desc: cURL GET 请求模板
 
+/headers:
+  - text: '-H "Content-Type: application/json" -H "Authorization: Bearer "'
+    desc: HTTP JSON 与 Bearer Token 请求头
+
+/sql:
+  - text: |
+      SELECT id, name, created_at
+      FROM table_name
+      WHERE status = 1
+      ORDER BY id DESC
+      LIMIT 20 OFFSET 0;
+    desc: 标准 SQL 分页查询语句
+
+/docker:
+  - text: |
+      FROM alpine:latest
+      WORKDIR /app
+      COPY . .
+      CMD ["sh"]
+    desc: Dockerfile 极简基础模板
+
+/compose:
+  - text: |
+      services:
+        app:
+          image: nginx:alpine
+          ports:
+            - "8080:80"
+          restart: unless-stopped
+    desc: Docker Compose 服务编排模板
+
+/ignore:
+  - text: |
+      .DS_Store
+      Thumbs.db
+      node_modules/
+      __pycache__/
+      *.pyc
+      .env
+      *.log
+      .idea/
+      .vscode/
+    desc: 常见跨平台通用的 .gitignore 忽略规则
+
+# ─── 2. Git 提交规范与协作 (Git Workflow) ────────────────────────────────────
+/git:
+  - text: "✨ Feat: "
+    desc: ✨ 新功能与主要特性 (Feat)
+  - text: "🚀 Update: "
+    desc: 🚀 增强优化与功能迭代 (Update)
+  - text: "🔧 Fix: "
+    desc: 🔧 缺陷修复与稳定性补丁 (Fix)
+  - text: "🐛 Bug: "
+    desc: 🐛 边缘缺陷与已知漏洞修复 (Bug)
+  - text: "📝 Docs: "
+    desc: 📝 文档注释与说明更新 (Docs)
+  - text: "💄 UI: "
+    desc: 💄 视觉样式与界面微调 (UI)
+  - text: "⚙️ Chore: "
+    desc: ⚙️ 构建工具与日常维护变动 (Chore)
+  - text: "♻️ Refactor: "
+    desc: ♻️ 代码重构且不改变外部行为 (Refactor)
+  - text: "⚡️ Perf: "
+    desc: ⚡️ 性能优化与执行加速 (Perf)
+  - text: "🧪 Test: "
+    desc: 🧪 单元测试与测试用例增加 (Test)
+  - text: "🔒 Sec: "
+    desc: 🔒 安全漏洞修复与权限加固 (Sec)
+  - text: "🍱 Sign: "
+    desc: 🍱 资源文件、元数据与签名更新 (Sign)
+
+/pr:
+  - text: |
+      ## 📌 Summary
+      - 
+      
+      ## 🛠️ Changes
+      - 
+      
+      ## 🧪 Testing Verification
+      - [ ] Verified locally
+    desc: GitHub / GitLab 标准 PR 描述模板
+
+/review:
+  - text: "LGTM! Looks great to me, ready to merge! 🚀"
+    desc: Code Review: 赞同合并 (LGTM)
+  - text: "PTAL (Please Take Another Look) when you have a moment, thanks!"
+    desc: Code Review: 请求再次查阅 (PTAL)
+  - text: "Nit: "
+    desc: Code Review: 细微建议/可改可不改 (Nit)
+
+# ─── 3. Markdown 排版与文档设计 (Markdown & Layout) ──────────────────────────
+/table:
+  - text: |
+      | 名称 / Item | 类型 / Type | 说明 / Description |
+      | :--- | :--- | :--- |
+      | 属性 A | String | 必填项说明 |
+      | 属性 B | Number | 可选配置项 |
+    desc: Markdown 三列表格模板
+
+/callout:
+  - text: |
+      > [!NOTE]
+      > 这里填写需要特别强调的重点提示信息。
+    desc: GitHub / Obsidian 提示块 (Note)
+  - text: |
+      > [!TIP]
+      > 这里填写有用的使用技巧或进阶捷径。
+    desc: GitHub / Obsidian 技巧块 (Tip)
+  - text: |
+      > [!WARNING]
+      > 注意：这里填写可能引发意外的操作风险。
+    desc: GitHub / Obsidian 警告块 (Warning)
+
+/diff:
+  - text: |
+      ```diff
+      + ╔══════════════════════════════════════════════════════════╗
+      + ║ ▶ [✔] 1. 选中项 / 推荐方案名称                             ║
+      + ║       核心说明与高优先级内容                                ║
+      + ╚══════════════════════════════════════════════════════════╝
+        [ ] 2. 备选项 B
+      ```
+    desc: Diff 高对比双线语法高亮框 (AGENTS 规范)
+
+/details:
+  - text: |
+      <details>
+      <summary><b>点击展开查看详情 (Details)</b></summary>
+
+      这里放置折叠的内容或详细长篇排版。
+
+      </details>
+    desc: HTML 优雅折叠手风琴模板
+
+/todo:
+  - text: |
+      - [ ] 
+      - [ ] 
+      - [x] 
+    desc: Markdown 待办勾选清单
+
+/kbd:
+  - text: "<kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd>"
+    desc: 键盘快捷键按键排版标签
+
+# ─── 4. 职场邮件与高效沟通 (Work & Communication) ────────────────────────────
 /mail:
   - text: 125110985@qq.com
-    desc: 个人邮箱落款
+    desc: 常用 QQ 邮箱
+
+/sign:
+  - text: |
+      Best regards,
+      Char
+    desc: 英文邮件落款签名
+  - text: |
+      祝好，
+      Char
+    desc: 中文邮件落款签名
 
 /thx:
   - text: "Thank you for your time and assistance."
-    desc: 英文邮件致谢
+    desc: 英文邮件标准感谢致谢
+  - text: "非常感谢您的支持与协助！"
+    desc: 中文商务感谢致谢
+
+/meet:
+  - text: |
+      【会议主题】：
+      【会议时间】：
+      【参会人员】：
+      【腾讯会议/链接】：
+      【核心议程】：
+      1. 
+      2. 
+    desc: 标准化会议邀请与议程通知模板
+
+/afk:
+  - text: "您好，我目前暂时外出/休假中，稍后会尽快回复您的消息。如有紧急事务，请致电联系，谢谢！"
+    desc: 临时外出 / 休假自动回复话术
+
+# ─── 5. 测试数据、占位与网络信息 (Mock & Network) ─────────────────────────────
+/ip:
+  - text: "127.0.0.1"
+    desc: IPv4 本机回环地址 (Localhost)
+  - text: "0.0.0.0"
+    desc: 全网监听通配地址 (All Interfaces)
+  - text: "192.168.1.1"
+    desc: 常用家庭网关路由地址
+  - text: "1.1.1.1"
+    desc: Cloudflare 高速 Public DNS
+  - text: "8.8.8.8"
+    desc: Google Public DNS
+
+/mock:
+  - text: |
+      {
+        "code": 200,
+        "message": "success",
+        "data": {
+          "id": 1001,
+          "name": "Test User",
+          "email": "test@example.com",
+          "status": "active"
+        }
+      }
+    desc: RESTful API JSON 响应 Mock 数据
 
 /lorem:
   - text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
-    desc: 标准拉丁占位假文
-  - text: "昔人已乘黄鹤去，此地空余黄鹤楼。黄鹤一去不复返，白云千载空悠悠。"
-    desc: 中文排版占位假文
+    desc: 标准经典拉丁占位假文
+  - text: "昔人已乘黄鹤去，此地空余黄鹤楼。黄鹤一去不复返，白云千载空悠悠。晴川历历汉阳树，芳草萋萋鹦鹉洲。"
+    desc: 中文排版占位假文（黄鹤楼）
+  - text: "君不见，黄河之水天上来，奔流到海不复回。君不见，高堂明镜悲白发，朝如青丝暮成雪。"
+    desc: 中文长句占位假文（将进酒）
+
+/line:
+  - text: "────────────────────────────────────────────────────────"
+    desc: 常用纯文本细单分割线
+  - text: "════════════════════════════════════════════════════════"
+    desc: 常用纯文本双横分割线

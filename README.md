@@ -130,7 +130,6 @@ irm https://raw.githubusercontent.com/<YOUR_GITHUB_USERNAME>/Rime_Config/main/in
 ├── sync_watcher.ps1             # ⚡ Windows 后台变动监听守护服务
 ├── custom_phrase.example.txt    # 📋 系统短语公开模板 (个人明文由 AES-256 vault.enc 加密)
 ├── snippets.yaml                # 📋 Snippets 片段配置文件 (支持多行块文本)
-├── snippets.txt                 # 📋 Snippets 向下兼容旧版文本
 ├── vault.enc                    # 🔒 AES-256 密文同步包 (包含私密短语与用户打字词频)
 ├── default.custom.yaml          # 默认方案 (rime_frost) 与中英切换设定
 ├── squirrel.custom.yaml         # 鼠须管外观、分应用中英与 Rheatin Solarized 配色 (macOS)

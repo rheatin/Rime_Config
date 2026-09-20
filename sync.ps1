@@ -166,16 +166,6 @@ if (Test-Path $RepoSnippetsYaml) {
     }
 }
 
-$RepoSnippets = Join-Path $ScriptDir "snippets.txt"
-$RimeSnippets = Join-Path $RimeDir "snippets.txt"
-if (Test-Path $RepoSnippets) {
-    if ((-not (Test-Path $RimeSnippets)) -or ((Get-FileHash $RepoSnippets).Hash -ne (Get-FileHash $RimeSnippets).Hash)) {
-        Log-Message "检测到代码片段库更新: snippets.txt，正在应用..."
-        Copy-Item -Path $RepoSnippets -Destination $RimeSnippets -Force
-        $ConfigUpdated = $true
-    }
-}
-
 Get-ChildItem -Path $ScriptDir -Filter "*.custom.yaml" -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne "squirrel.custom.yaml" } | ForEach-Object {
     $src = $_.FullName
     $dst = Join-Path $RimeDir $_.Name
@@ -239,7 +229,7 @@ if ($OpenSSL) {
 # 4. 提交并推送到 GitHub (仅提交密文包与脱敏模板)
 if (Test-Path (Join-Path $ScriptDir ".git")) {
     Push-Location $ScriptDir
-    git add vault.enc custom_phrase.example.txt snippets.yaml snippets.txt 2>$null
+    git add vault.enc custom_phrase.example.txt snippets.yaml 2>$null
     $Status = git status --porcelain
     
     if ($Status) {

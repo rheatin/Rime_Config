@@ -285,9 +285,6 @@ fi
 if [ -f "$SCRIPT_DIR/snippets.yaml" ]; then
   cp -f "$SCRIPT_DIR/snippets.yaml" "$RIME_DIR/"
 fi
-if [ -f "$SCRIPT_DIR/snippets.txt" ]; then
-  cp -f "$SCRIPT_DIR/snippets.txt" "$RIME_DIR/"
-fi
 echo -e "${GREEN}✅ 个人配置应用成功！${NC}"
 
 # 8. 安装思源宋体与 Symbols Nerd Font 字体 (若已安装则跳过)

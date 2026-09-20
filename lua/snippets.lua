@@ -1,7 +1,6 @@
 -- ==============================================================================
 -- 快速文本与代码片段引擎 (Snippets Engine)
--- 优先读取 snippets.yaml (支持优雅的多行 | 块与标准 YAML 格式)，
--- 向下兼容旧版 Tab 分隔的 snippets.txt
+-- 读取用户目录下的 snippets.yaml，支持前缀快速展开与原生 | 多行块文本
 -- ==============================================================================
 
 local M = {}
@@ -21,11 +20,11 @@ local function strip_quotes(s)
     return s
 end
 
--- 优雅解析 snippets.yaml
+-- 解析 snippets.yaml
 local function load_yaml_snippets(filepath)
     local map = {}
     local file = io.open(filepath, "r")
-    if not file then return nil end
+    if not file then return map end
 
     local cur_trigger = nil
     local cur_item = nil
@@ -104,41 +103,10 @@ local function load_yaml_snippets(filepath)
     return map
 end
 
--- 向下兼容解析旧版 snippets.txt (Tab 分隔)
-local function load_tsv_snippets(filepath)
-    local map = {}
-    local file = io.open(filepath, "r")
-    if not file then return map end
-
-    for line in file:lines() do
-        line = line:gsub("^%s+", ""):gsub("%s+$", "")
-        if line ~= "" and not line:match("^#") then
-            local trigger, text, comment = line:match("^([^\t]+)\t([^\t]+)\t?(.*)$")
-            if trigger and text then
-                map[trigger] = map[trigger] or {}
-                table.insert(map[trigger], {
-                    text = unescape_str(text),
-                    comment = comment or ""
-                })
-            end
-        end
-    end
-    file:close()
-    return map
-end
-
 function M.init(env)
     local user_dir = rime_api and rime_api.get_user_data_dir and rime_api.get_user_data_dir() or ""
     local yaml_path = (user_dir ~= "" and (user_dir .. "/snippets.yaml")) or "snippets.yaml"
-    local txt_path = (user_dir ~= "" and (user_dir .. "/snippets.txt")) or "snippets.txt"
-
-    -- 优先读取 snippets.yaml，若不存在则回退至 snippets.txt
-    local yaml_data = load_yaml_snippets(yaml_path)
-    if yaml_data then
-        env.snippets_map = yaml_data
-    else
-        env.snippets_map = load_tsv_snippets(txt_path)
-    end
+    env.snippets_map = load_yaml_snippets(yaml_path)
 end
 
 function M.func(input, seg, env)

@@ -119,9 +119,6 @@ fi
 if [ -f "$SCRIPT_DIR/snippets.yaml" ]; then
   cp -f "$SCRIPT_DIR/snippets.yaml" "$RIME_DIR/" 2>/dev/null || true
 fi
-if [ -f "$SCRIPT_DIR/snippets.txt" ]; then
-  cp -f "$SCRIPT_DIR/snippets.txt" "$RIME_DIR/" 2>/dev/null || true
-fi
 cp -f "$SCRIPT_DIR/rime_frost.custom.yaml" "$RIME_DIR/" 2>/dev/null || true
 cp -f "$SCRIPT_DIR/default.custom.yaml" "$RIME_DIR/" 2>/dev/null || true
 if [ "$(uname -s)" = "Darwin" ]; then
@@ -217,7 +214,7 @@ fi
 # 5. 提交并推送到 GitHub (明文短语与词频由 .gitignore 拦截，仅推送密文)
 echo -e "${BLUE}🚀 5. 正在推送到远程 GitHub 仓库...${NC}"
 cd "$SCRIPT_DIR"
-git add vault.enc custom_phrase.example.txt snippets.yaml snippets.txt 2>/dev/null || true
+git add vault.enc custom_phrase.example.txt snippets.yaml 2>/dev/null || true
 
 if git diff-index --quiet HEAD --; then
   echo -e "${GREEN}✨ 词频与短语已是最新，无新增改动。${NC}"
