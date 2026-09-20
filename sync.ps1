@@ -142,7 +142,7 @@ if (-not $Auto) {
     Log-Message "手动触发模式：正在调用小狼毫导出..."
     $Deployer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime", "${env:ProgramFiles}\Rime" -Filter "WeaselDeployer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($Deployer) {
-        Start-Process -FilePath $Deployer.FullName -ArgumentList "/sync" -Wait
+        Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$($Deployer.FullName)`" /sync" -WindowStyle Hidden -Wait
     }
 } else {
     Log-Message "自动监听模式：等待 WeaselDeployer 写入完成..."
@@ -392,7 +392,7 @@ if ($ConfigUpdated) {
     Log-Message "正在触发小狼毫重新部署以使最新配置与短语生效..."
     $Deployer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime", "${env:ProgramFiles}\Rime" -Filter "WeaselDeployer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($Deployer) {
-        Start-Process -FilePath $Deployer.FullName -ArgumentList "/deploy" -Wait
+        Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$($Deployer.FullName)`" /deploy" -WindowStyle Hidden -Wait
     }
 }
 

@@ -397,8 +397,8 @@ $Deployer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime", "${env:ProgramF
 $WeaselServer = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Rime", "${env:ProgramFiles}\Rime" -Filter "WeaselServer.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 
 if ($Deployer) {
-    Start-Process -FilePath $Deployer.FullName -ArgumentList "/deploy" -Wait
-    Start-Process -FilePath $Deployer.FullName -ArgumentList "/sync" -Wait
+    Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$($Deployer.FullName)`" /deploy" -WindowStyle Hidden -Wait
+    Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$($Deployer.FullName)`" /sync" -WindowStyle Hidden -Wait
     Stop-Process -Name "WeaselDeployer" -Force -ErrorAction SilentlyContinue
     Write-Host "🎉 部署完成！" -ForegroundColor Green
 }
