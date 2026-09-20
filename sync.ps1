@@ -1,4 +1,4 @@
-# ==============================================================================
+﻿﻿# ==============================================================================
 # Rime Windows 用户词频与自造词一键/自动同步备份脚本 (支持交互式密码与 AES-256 隐私加密)
 # Repository: https://github.com/rheatin/Rime_Config.git
 # ==============================================================================
@@ -236,7 +236,8 @@ if ((Test-Path $RepoPhrase) -or (Test-Path $RimePhrase)) {
     )
     $MergedLines = [System.Collections.Generic.List[string]]::new($Headers)
     foreach ($k in ($AllEntries.Keys | Sort-Object)) {
-        $MergedLines.Add("$k`t$($AllEntries[$k])")
+        $val = $AllEntries[$k]
+        $MergedLines.Add($k + "`t" + $val)
     }
     $MergedContent = $MergedLines -join "`n"
     [System.IO.File]::WriteAllText($RepoPhrase, $MergedContent, [System.Text.Encoding]::UTF8)
