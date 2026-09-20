@@ -24,44 +24,54 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Check and Update MoeType Dictionary
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "🔍 检查 MoeType 萌娘百科最新词库..."
-          LATEST_JSON=$(curl -sL https://api.github.com/repos/suiginko/moetype/releases/latest || true)
+          LATEST_JSON=$(curl -sL \
+            ${GITHUB_TOKEN:+-H "Authorization: Bearer $GITHUB_TOKEN"} \
+            -H "User-Agent: Mozilla/5.0" \
+            https://api.github.com/repos/suiginko/moetype/releases/latest || true)
           DOWNLOAD_URL=$(echo "$LATEST_JSON" | grep -o 'https://[^"]*toneless_moe.dict.yaml' | head -n 1 || true)
           
-          if [ -n "$DOWNLOAD_URL" ]; then
-            echo "📥 发现 MoeType 下载链接: $DOWNLOAD_URL"
-            curl -sL "$DOWNLOAD_URL" -o /tmp/raw_moe.dict.yaml
-            
-            # 格式化 Header 确保与本仓库配置兼容
-            python3 -c "
-            with open('/tmp/raw_moe.dict.yaml', 'r', encoding='utf-8', errors='ignore') as f:
-                lines = f.readlines()
-            
-            out = []
-            header_done = False
-            for line in lines:
-                if not header_done:
-                    if line.startswith('name:'):
-                        out.append('name: moe\n')
-                        continue
-                    if line.startswith('...'):
-                        header_done = True
-                        out.append(line)
-                        continue
-                out.append(line)
-                
-            with open('moe.dict.yaml', 'w', encoding='utf-8') as f:
-                f.writelines(out)
-            "
+          if [ -z "$DOWNLOAD_URL" ]; then
+            echo "⚠️ 未能通过 GitHub API 解析，回退到 Release 最新 Direct 链接..."
+            DOWNLOAD_URL="https://github.com/suiginko/moetype/releases/latest/download/toneless_moe.dict.yaml"
           fi
+
+          echo "📥 正在下载 MoeType 最新词库: $DOWNLOAD_URL"
+          curl -fsSL "$DOWNLOAD_URL" -o /tmp/raw_moe.dict.yaml
+          
+          # 格式化 Header 确保与本仓库配置兼容 (name: moe)
+          python3 -c "import sys, textwrap; exec(textwrap.dedent(sys.stdin.read()))" << 'EOF'
+          with open('/tmp/raw_moe.dict.yaml', 'r', encoding='utf-8', errors='ignore') as f:
+              lines = f.readlines()
+          
+          out = []
+          header_done = False
+          for line in lines:
+              if not header_done:
+                  if line.startswith('name:'):
+                      out.append('name: moe\n')
+                      continue
+                  if line.startswith('...'):
+                      header_done = True
+                      out.append(line)
+                      continue
+              out.append(line)
+              
+          with open('moe.dict.yaml', 'w', encoding='utf-8') as f:
+              f.writelines(out)
+          EOF
 
       - name: Commit and Push if Changed
         run: |
-          git add moe.dict.yaml
-          if git diff --staged --quiet; then
-            echo "✨ 词库已是最新，无变动。"
-          else
-            git commit -m "🍱Sign:[Dict] Auto update MoeType dictionary from upstream release"
-            git push origin main
+          if [ -f moe.dict.yaml ]; then
+            git add -f moe.dict.yaml
+            if git diff --staged --quiet; then
+              echo "✨ 词库已是最新，无变动。"
+            else
+              git commit -m "🍱Sign:[Dict] Auto update MoeType dictionary from upstream release"
+              git push origin main
+            fi
           fi
