@@ -152,58 +152,100 @@ if [ -f "$SCRIPT_DIR/vault.enc" ]; then
       [ -f "$TMP_UNPACK_DIR/custom_phrase.txt" ] && echo -e "  • 系统自定义短语: custom_phrase.txt ($(wc -l < "$TMP_UNPACK_DIR/custom_phrase.txt" | tr -d ' ') 行)"
       [ -d "$TMP_UNPACK_DIR/sync" ] && echo -e "  • 跨平台词频目录: sync/ ($(ls "$TMP_UNPACK_DIR/sync" 2>/dev/null | tr '\n' ' '))"
 
-      # 双向智能合并 snippets.custom.yaml (融合本地修改与远端解密内容)
+      # 采用 Git 3-Way Merge (三路合并模型) 增量融合 snippets.custom.yaml
       python3 -c "
 import os
-def merge_yaml(files, out_paths):
+
+base_dir = '$RIME_DIR/.vault_base'
+os.makedirs(base_dir, exist_ok=True)
+base_file = os.path.join(base_dir, 'snippets.custom.base.yaml')
+remote_file = '$TMP_UNPACK_DIR/snippets.custom.yaml'
+local_file = '$RIME_DIR/snippets.custom.yaml'
+if not os.path.exists(local_file) and os.path.exists('$SCRIPT_DIR/snippets.custom.yaml'):
+    local_file = '$SCRIPT_DIR/snippets.custom.yaml'
+
+def parse_snippets(fp):
     blocks = {}
     order = []
-    valid_files = [f for f in files if os.path.exists(f)]
-    if not valid_files: return
-    # 按最后修改时间升序排列：最旧的先加载作为底座，最新的最后加载以获得最终覆盖权
-    valid_files.sort(key=lambda p: os.path.getmtime(p))
+    if not os.path.exists(fp): return blocks, order
+    cur_t = None
+    cur_l = []
+    with open(fp, 'r', encoding='utf-8', errors='ignore') as f:
+        for line in f:
+            raw = line.rstrip('\r\n')
+            s = raw.strip()
+            if s.startswith('/') and ':' in s:
+                if cur_t and cur_l: blocks[cur_t] = cur_l
+                cur_t = s.split(':')[0].strip('\"\'')
+                if cur_t not in order: order.append(cur_t)
+                cur_l = [raw]
+            elif cur_t: cur_l.append(raw)
+        if cur_t and cur_l: blocks[cur_t] = cur_l
+    return blocks, order
 
-    for fp in valid_files:
-        cur_t = None
-        cur_l = []
-        with open(fp, 'r', encoding='utf-8', errors='ignore') as f:
-            for line in f:
-                raw = line.rstrip('\r\n')
-                s = raw.strip()
-                if s.startswith('/') and ':' in s:
-                    if cur_t and cur_l: blocks[cur_t] = cur_l
-                    cur_t = s.split(':')[0].strip('\"\'')
-                    if cur_t not in order: order.append(cur_t)
-                    cur_l = [raw]
-                elif cur_t: cur_l.append(raw)
-            if cur_t and cur_l: blocks[cur_t] = cur_l
+base_b, base_o = parse_snippets(base_file)
+loc_b, loc_o = parse_snippets(local_file)
+rem_b, rem_o = parse_snippets(remote_file)
 
-    if not order: return
-    header = [
-        '# ==============================================================================',
-        '# 🔒 个人私密代码与文本片段 (snippets.custom.yaml)',
-        '# 说明：此文件包含个人敏感手机号、身份证、真实邮箱、地址等。',
-        '# 受 .gitignore 保护绝不以明文提交 GitHub，由 AES-256 (vault.enc) 加密跨平台同步。',
-        '# ==============================================================================',
-        ''
-    ]
-    res = list(header)
-    for t in order:
-        res.extend(blocks[t])
-        res.append('')
-    content = '\n'.join(res) + '\n'
-    for p in out_paths:
-        if os.path.isdir(os.path.dirname(p)):
-            with open(p, 'w', encoding='utf-8') as f:
-                f.write(content)
+if not base_o and rem_o:
+    base_b, base_o = rem_b, rem_o
 
-    newest_fp = valid_files[-1]
-    print(f'  🧩 snippets.custom.yaml 合并完成：以最新修改 [{os.path.basename(os.path.dirname(newest_fp))}/{os.path.basename(newest_fp)}] 优先覆盖，生效 {len(order)} 个片段')
+all_triggers = []
+for t in rem_o + loc_o + base_o:
+    if t not in all_triggers: all_triggers.append(t)
 
-merge_yaml(
-    ['$TMP_UNPACK_DIR/snippets.custom.yaml', '$SCRIPT_DIR/snippets.custom.yaml', '$RIME_DIR/snippets.custom.yaml'],
-    ['$SCRIPT_DIR/snippets.custom.yaml', '$RIME_DIR/snippets.custom.yaml']
-)
+merged_b = {}
+merged_o = []
+changes = []
+
+for t in all_triggers:
+    in_b = t in base_b
+    in_l = t in loc_b
+    in_r = t in rem_b
+    b_val = '\n'.join(base_b.get(t, [])).strip()
+    l_val = '\n'.join(loc_b.get(t, [])).strip()
+    r_val = '\n'.join(rem_b.get(t, [])).strip()
+
+    if in_l and not in_b and not in_r:
+        merged_b[t] = loc_b[t]; merged_o.append(t); changes.append(f'+本地:{t}')
+    elif in_r and not in_b and not in_l:
+        merged_b[t] = rem_b[t]; merged_o.append(t); changes.append(f'+远端:{t}')
+    elif in_b and not in_l and in_r:
+        if r_val == b_val: changes.append(f'-本地删除:{t}')
+        else: merged_b[t] = rem_b[t]; merged_o.append(t); changes.append(f'~远端更新保留:{t}')
+    elif in_b and in_l and not in_r:
+        if l_val == b_val: changes.append(f'-远端删除:{t}')
+        else: merged_b[t] = loc_b[t]; merged_o.append(t); changes.append(f'~本地修改保留:{t}')
+    elif in_l and in_r:
+        if l_val == r_val:
+            merged_b[t] = loc_b[t]; merged_o.append(t)
+        elif l_val == b_val:
+            merged_b[t] = rem_b[t]; merged_o.append(t); changes.append(f'~采用远端:{t}')
+        elif r_val == b_val:
+            merged_b[t] = loc_b[t]; merged_o.append(t); changes.append(f'~采用本地:{t}')
+        else:
+            merged_b[t] = loc_b[t]; merged_o.append(t); changes.append(f'!冲突采用当前端:{t}')
+
+header = [
+    '# ==============================================================================',
+    '# 🔒 个人私密代码与文本片段 (snippets.custom.yaml)',
+    '# 说明：此文件包含个人敏感手机号、身份证、真实邮箱、地址等。',
+    '# 受 .gitignore 保护绝不以明文提交 GitHub，由 AES-256 (vault.enc) 加密跨平台同步。',
+    '# ==============================================================================',
+    ''
+]
+res = list(header)
+for t in merged_o:
+    res.extend(merged_b[t])
+    res.append('')
+content = '\n'.join(res) + '\n'
+
+for p in ['$SCRIPT_DIR/snippets.custom.yaml', '$RIME_DIR/snippets.custom.yaml', base_file]:
+    if os.path.isdir(os.path.dirname(p)):
+        with open(p, 'w', encoding='utf-8') as f: f.write(content)
+
+summary = ', '.join(changes) if changes else '两端内容完全一致'
+print(f'  🧩 [Git 3-Way Merge] 私密片段合并完成: {summary} (共 {len(merged_o)} 项)')
 " 2>/dev/null || true
 
       # 复制同步过来的 sync 词频
@@ -328,7 +370,8 @@ for (phrase, sc), weight in sorted(phrase_map.items(), key=lambda x: (x[0][1], x
 
 merged_content = '\n'.join(lines) + '\n'
 
-for p in ['$SCRIPT_DIR/custom_phrase.txt', '$RIME_DIR/custom_phrase.txt']:
+base_phrase = os.path.join('$RIME_DIR/.vault_base', 'custom_phrase.base.txt')
+for p in ['$SCRIPT_DIR/custom_phrase.txt', '$RIME_DIR/custom_phrase.txt', base_phrase]:
     if os.path.isdir(os.path.dirname(p)):
         with open(p, 'w', encoding='utf-8') as f:
             f.write(merged_content)

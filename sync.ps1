@@ -60,39 +60,101 @@ function Invoke-WeaselCommand {
     }
 }
 
-function Merge-SnippetYaml {
-    param([string[]]$FilePaths, [string[]]$OutPaths)
-    
-    $Blocks = @{}
-    $Order = [System.Collections.Generic.List[string]]::new()
-    
-    foreach ($fp in $FilePaths) {
-        if (-not (Test-Path $fp)) { continue }
-        $curTrigger = $null
-        $curLines = [System.Collections.Generic.List[string]]::new()
+function Invoke-ThreeWaySnippetMerge {
+    param(
+        [string]$BasePath,
+        [string]$LocalPath,
+        [string]$RemotePath,
+        [string[]]$OutPaths
+    )
+
+    function Parse-Blocks([string]$path) {
+        $b = @{}
+        $o = [System.Collections.Generic.List[string]]::new()
+        if (-not (Test-Path $path)) { return @{ Blocks = $b; Order = $o } }
         
-        Get-Content $fp -Encoding UTF8 -ErrorAction SilentlyContinue | ForEach-Object {
+        $curT = $null
+        $curL = [System.Collections.Generic.List[string]]::new()
+        Get-Content $path -Encoding UTF8 -ErrorAction SilentlyContinue | ForEach-Object {
             $raw = $_
             $s = $raw.Trim()
             if ($s.StartsWith("/") -and ($s -match '^"?(/\w+)"?:\s*$')) {
-                if ($curTrigger -and $curLines.Count -gt 0) {
-                    $Blocks[$curTrigger] = $curLines.ToArray()
-                }
-                $curTrigger = $Matches[1]
-                if (-not $Order.Contains($curTrigger)) { $Order.Add($curTrigger) }
-                $curLines = [System.Collections.Generic.List[string]]::new()
-                $curLines.Add($raw)
-            } elseif ($curTrigger) {
-                $curLines.Add($raw)
+                if ($curT -and $curL.Count -gt 0) { $b[$curT] = $curL.ToArray() }
+                $curT = $Matches[1]
+                if (-not $o.Contains($curT)) { [void]$o.Add($curT) }
+                $curL = [System.Collections.Generic.List[string]]::new()
+                [void]$curL.Add($raw)
+            } elseif ($curT) {
+                [void]$curL.Add($raw)
             }
         }
-        if ($curTrigger -and $curLines.Count -gt 0) {
-            $Blocks[$curTrigger] = $curLines.ToArray()
+        if ($curT -and $curL.Count -gt 0) { $b[$curT] = $curL.ToArray() }
+        return @{ Blocks = $b; Order = $o }
+    }
+
+    $BaseData = Parse-Blocks $BasePath
+    $LocalData = Parse-Blocks $LocalPath
+    $RemoteData = Parse-Blocks $RemotePath
+
+    # 如果尚无 Base 历史快照（首次运行三路模型），以远端为基准
+    if ($BaseData.Order.Count -eq 0) {
+        $BaseData = $RemoteData
+    }
+
+    $AllTriggers = [System.Collections.Generic.List[string]]::new()
+    foreach ($t in $RemoteData.Order) { if (-not $AllTriggers.Contains($t)) { [void]$AllTriggers.Add($t) } }
+    foreach ($t in $LocalData.Order) { if (-not $AllTriggers.Contains($t)) { [void]$AllTriggers.Add($t) } }
+    foreach ($t in $BaseData.Order) { if (-not $AllTriggers.Contains($t)) { [void]$AllTriggers.Add($t) } }
+
+    $MergedBlocks = @{}
+    $MergedOrder = [System.Collections.Generic.List[string]]::new()
+    $ActionLogs = [System.Collections.Generic.List[string]]::new()
+
+    foreach ($t in $AllTriggers) {
+        $inB = $BaseData.Blocks.ContainsKey($t)
+        $inL = $LocalData.Blocks.ContainsKey($t)
+        $inR = $RemoteData.Blocks.ContainsKey($t)
+
+        $bVal = if ($inB) { ($BaseData.Blocks[$t] -join "`n").Trim() } else { "" }
+        $lVal = if ($inL) { ($LocalData.Blocks[$t] -join "`n").Trim() } else { "" }
+        $rVal = if ($inR) { ($RemoteData.Blocks[$t] -join "`n").Trim() } else { "" }
+
+        if ($inL -and -not $inB -and -not $inR) {
+            $MergedBlocks[$t] = $LocalData.Blocks[$t]; [void]$MergedOrder.Add($t)
+            [void]$ActionLogs.Add("+本地:$t")
+        } elseif ($inR -and -not $inB -and -not $inL) {
+            $MergedBlocks[$t] = $RemoteData.Blocks[$t]; [void]$MergedOrder.Add($t)
+            [void]$ActionLogs.Add("+远端:$t")
+        } elseif ($inB -and -not $inL -and $inR) {
+            if ($rVal -eq $bVal) {
+                [void]$ActionLogs.Add("-本地删除:$t")
+            } else {
+                $MergedBlocks[$t] = $RemoteData.Blocks[$t]; [void]$MergedOrder.Add($t)
+                [void]$ActionLogs.Add("~远端更新保留:$t")
+            }
+        } elseif ($inB -and $inL -and -not $inR) {
+            if ($lVal -eq $bVal) {
+                [void]$ActionLogs.Add("-远端删除:$t")
+            } else {
+                $MergedBlocks[$t] = $LocalData.Blocks[$t]; [void]$MergedOrder.Add($t)
+                [void]$ActionLogs.Add("~本地修改保留:$t")
+            }
+        } elseif ($inL -and $inR) {
+            if ($lVal -eq $rVal) {
+                $MergedBlocks[$t] = $LocalData.Blocks[$t]; [void]$MergedOrder.Add($t)
+            } elseif ($lVal -eq $bVal) {
+                $MergedBlocks[$t] = $RemoteData.Blocks[$t]; [void]$MergedOrder.Add($t)
+                [void]$ActionLogs.Add("~采用远端:$t")
+            } elseif ($rVal -eq $bVal) {
+                $MergedBlocks[$t] = $LocalData.Blocks[$t]; [void]$MergedOrder.Add($t)
+                [void]$ActionLogs.Add("~采用本地:$t")
+            } else {
+                $MergedBlocks[$t] = $LocalData.Blocks[$t]; [void]$MergedOrder.Add($t)
+                [void]$ActionLogs.Add("!冲突采用本地:$t")
+            }
         }
     }
-    
-    if ($Order.Count -eq 0) { return }
-    
+
     $Header = @(
         "# ==============================================================================",
         "# 🔒 个人私密代码与文本片段 (snippets.custom.yaml)",
@@ -102,18 +164,21 @@ function Merge-SnippetYaml {
         ""
     )
     $Lines = [System.Collections.Generic.List[string]]::new($Header)
-    foreach ($t in $Order) {
-        if ($Blocks.ContainsKey($t)) {
-            foreach ($l in $Blocks[$t]) { [void]$Lines.Add($l) }
+    foreach ($t in $MergedOrder) {
+        if ($MergedBlocks.ContainsKey($t)) {
+            foreach ($l in $MergedBlocks[$t]) { [void]$Lines.Add($l) }
             [void]$Lines.Add("")
         }
     }
     $MergedText = $Lines -join "`n"
+
     foreach ($op in $OutPaths) {
         $parent = Split-Path -Parent $op
         if (-not (Test-Path $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
         [System.IO.File]::WriteAllText($op, $MergedText, [System.Text.Encoding]::UTF8)
     }
+
+    return $ActionLogs
 }
 function Get-VaultPass {
     param([switch]$Auto, [switch]$ResetPass)
@@ -278,23 +343,18 @@ if ((Test-Path $VaultEnc) -and $OpenSSL) {
             if (Test-Path $DecPhrase) { Log-Message "  • 系统自定义短语: custom_phrase.txt ($((Get-Content $DecPhrase).Count) 行)" }
             if (Test-Path $DecSync) { Log-Message "  • 跨平台词频目录: sync/ ($((Get-ChildItem $DecSync).Name -join ', '))" }
 
-            # 智能双向合并 snippets.custom.yaml (按修改时间升序排列，最新编辑的文件排在最后进行高优先级覆盖)
+            # 智能 Git 3-Way Merge 增量合并 snippets.custom.yaml
+            $BaseDir = Join-Path $RimeDir ".vault_base"
+            if (-not (Test-Path $BaseDir)) { New-Item -ItemType Directory -Path $BaseDir -Force | Out-Null }
+            $BaseCustom = Join-Path $BaseDir "snippets.custom.base.yaml"
+            $BasePhrase = Join-Path $BaseDir "custom_phrase.base.txt"
+
             $RepoCustom = Join-Path $ScriptDir "snippets.custom.yaml"
             $RimeCustom = Join-Path $RimeDir "snippets.custom.yaml"
 
-            $Candidates = @(
-                @{ Path = $DecCustom; Name = "远端云端" },
-                @{ Path = $RepoCustom; Name = "本地仓库" },
-                @{ Path = $RimeCustom; Name = "用户目录" }
-            ) | Where-Object { Test-Path $_.Path } | Sort-Object { (Get-Item $_.Path).LastWriteTime }
-
-            $MergeList = [System.Collections.Generic.List[string]]::new()
-            foreach ($c in $Candidates) { [void]$MergeList.Add($c.Path) }
-
-            $Newest = $Candidates[-1]
-            Log-Message "  • 私密片段合并判定：最新文件为 [$($Newest.Name)] ($((Get-Item $Newest.Path).LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss')))，作为最高优先级覆盖！"
-
-            Merge-SnippetYaml -FilePaths $MergeList.ToArray() -OutPaths @($RepoCustom, $RimeCustom)
+            $ActionLogs = Invoke-ThreeWaySnippetMerge -BasePath $BaseCustom -LocalPath $RimeCustom -RemotePath $DecCustom -OutPaths @($RepoCustom, $RimeCustom, $BaseCustom)
+            $Summary = if ($ActionLogs.Count -gt 0) { $ActionLogs -join ', ' } else { '两端内容完全一致' }
+            Log-Message "  🧩 [Git 3-Way Merge] 私密片段合并完成: $Summary"
 
             # 智能双向合并 custom_phrase.txt
             $RepoPhrase = Join-Path $ScriptDir "custom_phrase.txt"

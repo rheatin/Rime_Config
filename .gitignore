@@ -11,6 +11,7 @@ sync/
 .rime_vault_key
 .vault_key
 .vault_pass*
+.vault_base*
 
 # 系统与开发工具垃圾
 .DS_Store
