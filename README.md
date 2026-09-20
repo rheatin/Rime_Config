@@ -39,9 +39,10 @@
 - 🔣 **正统 `v` 模式 + Symbols Nerd Font 符号回退**：
   - 支持 `vfh`(符号)、`vjt`(箭头)、`vdw`(单位)、`vsz`(数字) 以及 `vhelp` 符号总表；内置 Nerd Font Mono 字体回退链，彻底杜绝特殊符号与开发者图标乱码。
   - Authentic `v` mode with Symbols Nerd Font fallback, eliminating Unicode font rendering issues.
-- 📋 **全新 Snippets YAML 片段引擎**：
-  - 敲 `/` 触发代码与文本模板（`/sh`、`/git`、`/curl`、`/mail` 等）；采用优雅的 `snippets.yaml`，原生支持 `|` 多行块文本，告别脆弱的 Tab 制表符与繁琐的 `\n`。
-  - Code & text expansion engine with clean `snippets.yaml` supporting true multi-line blocks.
+- 📋 **全新 Snippets YAML 片段引擎 (公共模版 + 私密隔离)**：
+  - 敲 `/` 触发代码与文本模板（`/sh`、`/git`、`/curl`、`/diff` 等）；采用优雅的 `snippets.yaml`，原生支持 `|` 多行块文本。
+  - **支持个人私密扩展 (`snippets.custom.yaml`)**：完美解决原生输入法中手机号等**数字编码（如 `/176`、`/3210`）无法作为快捷短语输出的痛点**！私密信息由 AES-256 加密同步，公开仓库绝无泄漏风险。
+  - Snippets engine supporting public `snippets.yaml` and encrypted private `snippets.custom.yaml`.
 - 🔒 **AES-256-CBC 端到端加密云同步**：
   - 个人词频（`sync/`）与真实短语（`custom_phrase.txt`）通过 OpenSSL AES-256 (PBKDF2) 加密为密文包 `vault.enc`，公开仓库绝无明文泄漏风险。
   - Mac / Windows 本地凭密钥静默解密，兼顾开源分享与极致个人隐私。
@@ -82,7 +83,7 @@ irm https://raw.githubusercontent.com/<YOUR_GITHUB_USERNAME>/Rime_Config/main/in
 | :--- | :--- | :--- | :--- |
 | `u` | **部件拆字反查** | `uhuohuohuo`<br>`uriri`<br>`uriumu` | 焱<br>晶<br>森 |
 | `v` | **特殊符号系统** | `vfh`<br>`vjt`<br>`vdw`<br>`vhelp` | ❖, ✿, ★<br>➔, ➜, ⇄<br>℃, ㎡, ㎏<br>打开符号总表 |
-| `/` | **Snippets 片段展开** | `/sh`<br>`/git`<br>`/curl`<br>`/mail` | 展开严谨 Bash 头部模板<br>Commit 前缀选项<br>cURL POST 请求模板<br>邮箱签名 |
+| `/` | **Snippets 片段展开** | `/sh`<br>`/git`<br>`/diff`<br>`/176` (私密短语) | 严谨 Bash 头部模板<br>Commit 前缀选项<br>Diff 高亮双线框<br>秒出个人真实手机号 |
 | `date` / `rq` | **日期快速输入** | `date` | `2026-09-20`, `2026年9月20日` |
 | `time` / `sj` | **当前时间** | `time` | `19:20:30`, `晚上 07:20` |
 | `ts` / `now` | **Unix 时间戳** | `ts` | `1789903230` (10位/13位) |
@@ -103,17 +104,20 @@ irm https://raw.githubusercontent.com/<YOUR_GITHUB_USERNAME>/Rime_Config/main/in
 - **macOS**：运行 `./tools/New-AppOptions.sh -r`（仅扫描运行中），或使用 `-a` 一键安全合并进 `squirrel.custom.yaml` 并自动重载；
 - **Windows**：运行 `pwsh -File tools\New-AppOptions.ps1 -RunningOnly`。
 
-### 3. 自定义代码片段 (Snippets)
-编辑根目录下的 `snippets.yaml`，保存后执行 `./sync.sh` 即可同步生效：
-
-```yaml
-/demo:
-  - text: |
-      function helloWorld() {
-        console.log("Hello Rime!");
-      }
-    desc: JavaScript 示例模板
-```
+### 3. 自定义代码与私密短语 (Snippets)
+- **公共通用片段**：编辑根目录下的 `snippets.yaml`，公开分享给所有设备；
+- **个人私密片段 (手机号/身份证/真实邮箱/收件地址)**：
+  编辑 `snippets.custom.yaml`（参考公开模板 `snippets.custom.example.yaml`）。
+  此文件在本地拥有最高优先级覆盖，并通过 AES-256 (`vault.enc`) 自动加密同步，绝不上传到公开 GitHub！
+  
+  ```yaml
+  /176:
+    - text: "17600000000"
+      desc: 主力手机号
+  /addr:
+    - text: "某省某市某区某街道 张三 17600000000"
+      desc: 常用快递收件地址
+  ```
 
 ---
 
@@ -129,8 +133,9 @@ irm https://raw.githubusercontent.com/<YOUR_GITHUB_USERNAME>/Rime_Config/main/in
 ├── sync.ps1                     # 🔄 Windows 一键极速词频加密同步
 ├── sync_watcher.ps1             # ⚡ Windows 后台变动监听守护服务
 ├── custom_phrase.example.txt    # 📋 系统短语公开模板 (个人明文由 AES-256 vault.enc 加密)
-├── snippets.yaml                # 📋 Snippets 片段配置文件 (支持多行块文本)
-├── vault.enc                    # 🔒 AES-256 密文同步包 (包含私密短语与用户打字词频)
+├── snippets.yaml                # 📋 Snippets 公共片段配置文件 (支持多行块文本)
+├── snippets.custom.example.yaml # 🔒 个人私密片段公开模板 (真实明文由 AES-256 vault.enc 加密)
+├── vault.enc                    # 🔒 AES-256 密文同步包 (包含私密短语、私密片段与用户词频)
 ├── default.custom.yaml          # 默认方案 (rime_frost) 与中英切换设定
 ├── squirrel.custom.yaml         # 鼠须管外观、分应用中英与 Rheatin Solarized 配色 (macOS)
 ├── weasel.custom.yaml           # 小狼毫外观、分应用中英与 Rheatin Solarized 配色 (Windows)

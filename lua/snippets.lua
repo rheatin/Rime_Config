@@ -1,6 +1,7 @@
 -- ==============================================================================
 -- 快速文本与代码片段引擎 (Snippets Engine)
--- 读取用户目录下的 snippets.yaml，支持前缀快速展开与原生 | 多行块文本
+-- 自动加载并合并默认片段库 (snippets.yaml) 与 个人私密片段库 (snippets.custom.yaml)
+-- 支持前缀快速展开、原生 | 多行块文本与私密片段高优先覆盖
 -- ==============================================================================
 
 local M = {}
@@ -20,8 +21,8 @@ local function strip_quotes(s)
     return s
 end
 
--- 解析 snippets.yaml
-local function load_yaml_snippets(filepath)
+-- 解析 YAML 片段文件
+local function load_yaml_snippets(filepath, default_quality)
     local map = {}
     local file = io.open(filepath, "r")
     if not file then return map end
@@ -58,7 +59,7 @@ local function load_yaml_snippets(filepath)
 
         if not multiline_active then
             if s ~= "" and not s:match("^#") then
-                -- 1. 匹配触发前缀，如 /sh: 或 "/sh":
+                -- 1. 匹配触发前缀，如 /sh: 或 "/176":
                 local trigger_match = raw:match("^([/%w_%-]+):%s*$") or raw:match('^"([/%w_%-]+)":%s*$')
                 if trigger_match then
                     cur_trigger = trigger_match
@@ -66,7 +67,7 @@ local function load_yaml_snippets(filepath)
                     cur_item = nil
                 elseif cur_trigger and s:match("^%-%s*") then
                     -- 2. 列表项开始，如 - text: | 或 - text: ...
-                    cur_item = { text = "", comment = "" }
+                    cur_item = { text = "", comment = "", quality = default_quality or 1000 }
                     table.insert(map[cur_trigger], cur_item)
                     local rest = s:gsub("^%-%s*", "")
                     if rest:match("^text:%s*|") then
@@ -103,10 +104,46 @@ local function load_yaml_snippets(filepath)
     return map
 end
 
+-- 合并 base 片段与 custom 私密片段 (custom 项拥有最高优先级并置顶)
+local function merge_snippets(base_map, custom_map)
+    local merged = {}
+    for k, v in pairs(base_map) do
+        merged[k] = {}
+        for _, item in ipairs(v) do
+            table.insert(merged[k], item)
+        end
+    end
+
+    for k, v in pairs(custom_map) do
+        if not merged[k] then
+            merged[k] = {}
+            for _, item in ipairs(v) do
+                table.insert(merged[k], item)
+            end
+        else
+            -- 个人私密片段置于同名前置首位
+            local combined = {}
+            for _, item in ipairs(v) do
+                table.insert(combined, item)
+            end
+            for _, item in ipairs(merged[k]) do
+                table.insert(combined, item)
+            end
+            merged[k] = combined
+        end
+    end
+    return merged
+end
+
 function M.init(env)
     local user_dir = rime_api and rime_api.get_user_data_dir and rime_api.get_user_data_dir() or ""
-    local yaml_path = (user_dir ~= "" and (user_dir .. "/snippets.yaml")) or "snippets.yaml"
-    env.snippets_map = load_yaml_snippets(yaml_path)
+    local base_path = (user_dir ~= "" and (user_dir .. "/snippets.yaml")) or "snippets.yaml"
+    local custom_path = (user_dir ~= "" and (user_dir .. "/snippets.custom.yaml")) or "snippets.custom.yaml"
+
+    local base_map = load_yaml_snippets(base_path, 1000)
+    local custom_map = load_yaml_snippets(custom_path, 1100)
+
+    env.snippets_map = merge_snippets(base_map, custom_map)
 end
 
 function M.func(input, seg, env)
@@ -116,7 +153,7 @@ function M.func(input, seg, env)
     if entries then
         for _, item in ipairs(entries) do
             local cand = Candidate("snippet", seg.start, seg._end, item.text, item.comment)
-            cand.quality = 1000
+            cand.quality = item.quality or 1000
             yield(cand)
         end
     end

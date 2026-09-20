@@ -245,11 +245,18 @@ Get-ChildItem -Path $SourceDir -Filter "*.custom.yaml" -File -ErrorAction Silent
 Get-ChildItem -Path $SourceDir -Filter "*.dict.yaml" -File -ErrorAction SilentlyContinue | Copy-Item -Destination $RimeDir -Force
 
 # 复制特定 yaml 与 txt 文件
-@("symbols_v.yaml", "snippets.yaml", "weasel.custom.yaml") | ForEach-Object {
+@("symbols_v.yaml", "snippets.yaml", "snippets.custom.example.yaml", "weasel.custom.yaml") | ForEach-Object {
     $targetFile = Join-Path $SourceDir $_
     if (Test-Path $targetFile) {
         Copy-Item -Path $targetFile -Destination $RimeDir -Force
     }
+}
+
+$CustomSnippets = Join-Path $SourceDir "snippets.custom.yaml"
+if (Test-Path $CustomSnippets) {
+    Copy-Item -Path $CustomSnippets -Destination (Join-Path $RimeDir "snippets.custom.yaml") -Force
+} elseif (Test-Path (Join-Path $SourceDir "snippets.custom.example.yaml")) {
+    Copy-Item -Path (Join-Path $SourceDir "snippets.custom.example.yaml") -Destination (Join-Path $RimeDir "snippets.custom.yaml") -Force
 }
 
 # 复制自定义短语 (优先使用个人短语，其次使用公开示例短语)

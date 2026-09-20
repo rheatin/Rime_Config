@@ -4,6 +4,7 @@ moe.dedup.dict.yaml
 
 # 个人隐私脱敏保护 (明文短语与个人词频不入公开仓库)
 custom_phrase.txt
+snippets.custom.yaml
 sync/
 *.key
 *.enc.tmp

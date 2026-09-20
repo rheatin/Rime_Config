@@ -119,6 +119,9 @@ fi
 if [ -f "$SCRIPT_DIR/snippets.yaml" ]; then
   cp -f "$SCRIPT_DIR/snippets.yaml" "$RIME_DIR/" 2>/dev/null || true
 fi
+if [ -f "$SCRIPT_DIR/snippets.custom.yaml" ]; then
+  cp -f "$SCRIPT_DIR/snippets.custom.yaml" "$RIME_DIR/" 2>/dev/null || true
+fi
 cp -f "$SCRIPT_DIR/rime_frost.custom.yaml" "$RIME_DIR/" 2>/dev/null || true
 cp -f "$SCRIPT_DIR/default.custom.yaml" "$RIME_DIR/" 2>/dev/null || true
 if [ "$(uname -s)" = "Darwin" ]; then
@@ -199,22 +202,22 @@ if [ -d "$RIME_DIR/sync" ]; then
   find "$SCRIPT_DIR/sync" -type f ! -name "*.userdb.txt" -delete 2>/dev/null || true
 fi
 
-# 将 custom_phrase.txt 与 sync/ 打包加密为 vault.enc
+# 将 custom_phrase.txt、snippets.custom.yaml 与 sync/ 打包加密为 vault.enc
 VAULT_PASS=$(get_vault_pass || true)
 if [ -n "$VAULT_PASS" ]; then
   TMP_TAR="/tmp/rime_vault_$$.tar.gz"
-  tar -czf "$TMP_TAR" -C "$SCRIPT_DIR" custom_phrase.txt sync 2>/dev/null || true
+  tar -czf "$TMP_TAR" -C "$SCRIPT_DIR" custom_phrase.txt snippets.custom.yaml sync 2>/dev/null || true
   if [ -f "$TMP_TAR" ]; then
     echo "$VAULT_PASS" | openssl enc -aes-256-cbc -salt -pbkdf2 -pass stdin -in "$TMP_TAR" -out "$SCRIPT_DIR/vault.enc" 2>/dev/null || true
     rm -f "$TMP_TAR"
-    echo -e "${GREEN}🔒 隐私短语与自造词已成功通过 AES-256 加密保护 (vault.enc)！${NC}"
+    echo -e "${GREEN}🔒 隐私短语、私有片段与自造词已成功通过 AES-256 加密保护 (vault.enc)！${NC}"
   fi
 fi
 
-# 5. 提交并推送到 GitHub (明文短语与词频由 .gitignore 拦截，仅推送密文)
+# 5. 提交并推送到 GitHub (明文短语、私有片段与词频由 .gitignore 拦截，仅推送密文)
 echo -e "${BLUE}🚀 5. 正在推送到远程 GitHub 仓库...${NC}"
 cd "$SCRIPT_DIR"
-git add vault.enc custom_phrase.example.txt snippets.yaml 2>/dev/null || true
+git add vault.enc custom_phrase.example.txt snippets.yaml snippets.custom.example.yaml 2>/dev/null || true
 
 if git diff-index --quiet HEAD --; then
   echo -e "${GREEN}✨ 词频与短语已是最新，无新增改动。${NC}"

@@ -166,6 +166,16 @@ if (Test-Path $RepoSnippetsYaml) {
     }
 }
 
+$RepoSnippetsCustom = Join-Path $ScriptDir "snippets.custom.yaml"
+$RimeSnippetsCustom = Join-Path $RimeDir "snippets.custom.yaml"
+if (Test-Path $RepoSnippetsCustom) {
+    if ((-not (Test-Path $RimeSnippetsCustom)) -or ((Get-FileHash $RepoSnippetsCustom).Hash -ne (Get-FileHash $RimeSnippetsCustom).Hash)) {
+        Log-Message "检测到个人私密代码片段库更新: snippets.custom.yaml，正在应用..."
+        Copy-Item -Path $RepoSnippetsCustom -Destination $RimeSnippetsCustom -Force
+        $ConfigUpdated = $true
+    }
+}
+
 Get-ChildItem -Path $ScriptDir -Filter "*.custom.yaml" -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne "squirrel.custom.yaml" } | ForEach-Object {
     $src = $_.FullName
     $dst = Join-Path $RimeDir $_.Name
@@ -208,18 +218,18 @@ if (Test-Path $SourceSync) {
     Get-ChildItem -Path $TargetSync -Recurse -File | Where-Object { $_.Extension -ne ".txt" } | Remove-Item -Force -ErrorAction SilentlyContinue
 }
 
-# 3.1 对 custom_phrase.txt 与 sync/ 进行 AES-256 加密打包 (vault.enc)
+# 3.1 对 custom_phrase.txt、snippets.custom.yaml 与 sync/ 进行 AES-256 加密打包 (vault.enc)
 if ($OpenSSL) {
     $VaultPass = Get-VaultPass -Auto:$Auto -ResetPass:$ResetPass
     if ($VaultPass) {
         $TempTar = Join-Path $env:TEMP "rime_vault.tar.gz"
         try {
             Push-Location $ScriptDir
-            tar -czf $TempTar custom_phrase.txt sync 2>$null
+            tar -czf $TempTar custom_phrase.txt snippets.custom.yaml sync 2>$null
             if (Test-Path $TempTar) {
                 $VaultPass | & $OpenSSL enc -aes-256-cbc -salt -pbkdf2 -pass stdin -in $TempTar -out $VaultEnc 2>$null
                 Remove-Item -Path $TempTar -Force -ErrorAction SilentlyContinue
-                Log-Message "🔒 隐私短语与词频已成功通过 AES-256 加密打包 (vault.enc)！"
+                Log-Message "🔒 隐私短语、私有片段与词频已成功通过 AES-256 加密打包 (vault.enc)！"
             }
             Pop-Location
         } catch {}
@@ -229,7 +239,7 @@ if ($OpenSSL) {
 # 4. 提交并推送到 GitHub (仅提交密文包与脱敏模板)
 if (Test-Path (Join-Path $ScriptDir ".git")) {
     Push-Location $ScriptDir
-    git add vault.enc custom_phrase.example.txt snippets.yaml 2>$null
+    git add vault.enc custom_phrase.example.txt snippets.yaml snippets.custom.example.yaml 2>$null
     $Status = git status --porcelain
     
     if ($Status) {
