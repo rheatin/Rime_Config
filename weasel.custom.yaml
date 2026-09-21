@@ -3,7 +3,7 @@ patch:
   "style/color_scheme": rheatin_solarized_light
   "style/color_scheme_dark": rheatin_solarized
   "style/horizontal": true
-  "style/inline_preedit": true
+  "style/inline_preedit": false
 
   # 字体设定 (思源宋体 Heavy + Symbols Nerd Font 符号回退)
   "style/font_face": "Source Han Serif SC Heavy, 思源宋体 Heavy, Source Han Serif SC, 思源宋体, SourceHanSerifSC-Heavy, SimSun, Microsoft YaHei, Symbols Nerd Font Mono, Symbols Nerd Font"

@@ -5,7 +5,7 @@ patch:
 
   # 分应用中英文自动切换设定 (默认全局英文，仅聊天通讯与浏览器等特定应用自动切中文)
   app_options:
-    # ─── 聊天与通讯软件 ───
+    # ─── 聊天与通讯软件 (自动切中文) ───
     com.tencent.xinWeChat:
       ascii_mode: false
     org.telegram.desktop:
@@ -18,11 +18,8 @@ patch:
       ascii_mode: false
     com.apple.MobileSMS:
       ascii_mode: false
-    # Slack 办公沟通以英文为主
-    com.tinyspeck.slackmacgap:
-      ascii_mode: true
 
-    # ─── 网页浏览器 (自动中文，移除容易引发 Chromium 冲突的 inline: true) ───
+    # ─── 网页浏览器 (自动切中文) ───
     com.google.Chrome:
       ascii_mode: false
     com.apple.Safari:
@@ -34,60 +31,14 @@ patch:
     org.mozilla.firefox:
       ascii_mode: false
 
-    # ─── 笔记写作与日常办公 (保持英文) ───
-    com.apple.Notes:
+    # ─── 特殊办公与开发定制 ───
+    # Slack 办公沟通以英文为主
+    com.tinyspeck.slackmacgap:
       ascii_mode: true
-    com.apple.mail:
-      ascii_mode: true
-    com.apple.reminders:
-      ascii_mode: true
-    com.microsoft.Word:
-      ascii_mode: true
-    com.microsoft.Excel:
-      ascii_mode: true
-    com.apple.iWork.Pages:
-      ascii_mode: true
-    com.apple.iWork.Keynote:
-      ascii_mode: true
-    notion.id:
-      ascii_mode: true
-    md.obsidian:
-      ascii_mode: true
-
-    # ─── 终端与命令行 (强制英文，禁止行内嵌入) ───
-    com.apple.Terminal:
-      ascii_mode: true
-      no_inline: true
-    com.stablyai.orca:
-      ascii_mode: true
-      no_inline: true
-    com.googlecode.iterm2:
-      ascii_mode: true
-      no_inline: true
-    co.zeit.hyper:
-      ascii_mode: true
-      no_inline: true
-
-    # ─── 代码编辑器与开发工具 (强制英文) ───
-    com.microsoft.VSCode:
-      ascii_mode: true
-    com.apple.dt.Xcode:
-      ascii_mode: true
-    com.torusknot.SourceTreeNotMAS:
-      ascii_mode: true
-      no_inline: true
+    # MacVim 独占 Vim 模式切换
     org.vim.MacVim:
       ascii_mode: true
-      no_inline: true
       vim_mode: true
-    com.apple.Spotlight:
-      ascii_mode: true
-    com.alfredapp.Alfred:
-      ascii_mode: true
-    com.runningwithcrayons.Alfred-2:
-      ascii_mode: true
-    com.blacktree.Quicksilver:
-      ascii_mode: true
 
   style:
     color_scheme: rheatin_solarized_light  # 浅色模式自适应 Rheatin Solarized Light
@@ -96,7 +47,7 @@ patch:
     text_orientation: horizontal
     candidate_list_layout: linear
     translucency: true                     # 磨砂毛玻璃
-    inline_preedit: true
+    inline_preedit: false                  # 关闭行内预编辑：拼音显示在独立候选小窗内，彻底杜绝所有软件光标死锁冲突！
     corner_radius: 10                      # 外框圆角
     hilited_corner_radius: 6               # 选中胶囊圆角
     border_height: 6                       # 上下呼吸边距
