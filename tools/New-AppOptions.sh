@@ -105,6 +105,9 @@ TERMINAL_BUNDLE_IDS = {
     "com.sublimetext.4",
     "com.sublimetext.3",
     "com.panic.Prompt",
+    "com.torusknot.SourceTreeNotMAS",
+    "com.axosoft.gitkraken",
+    "com.github.GitHubClient",
 }
 
 # ── 3. 系统组件/内部守护进程/输入法自身（严禁或无需加入配置） ──────────────────────────────

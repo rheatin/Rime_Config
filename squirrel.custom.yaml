@@ -75,6 +75,7 @@ patch:
       ascii_mode: true
     com.torusknot.SourceTreeNotMAS:
       ascii_mode: true
+      no_inline: true
     org.vim.MacVim:
       ascii_mode: true
       no_inline: true
