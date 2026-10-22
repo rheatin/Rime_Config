@@ -63,8 +63,11 @@ REDUNDANT_PATTERNS=(
   # 墨奇音形与大模型
   "rime_frost_moqi*"
   "zh-moqi.gram"
-  # 辅助码拆分方案
-  "rime_frost_aux*"
+  # 注意: rime_frost_aux* 不可删除!
+  # rime_frost.schema.yaml 的 dependencies 声明了 rime_frost_aux,
+  # 且 engine/translators 挂载了 table_translator@frost_aux。
+  # 删掉它会让部署报 "missing input schema; skipped unsatisfied dependency:
+  # rime_frost_aux", 该词典相关的 `` 反查功能随之失效。
   # 笔画反查方案 (部件拆字 radical_pinyin 保留给 u 拆字模式)
   "stroke*"
   # 移动端九宫格方案残留

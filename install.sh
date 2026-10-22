@@ -367,11 +367,19 @@ fi
 # 11. 重新部署与合并词频生效
 echo -e "${BLUE}🔄 触发 Rime 重新部署与词频合并...${NC}"
 if [ "$PLATFORM" = "macos" ]; then
+  # 确定性部署：不依赖 Squirrel 进程当时是否在运行。
+  # `Squirrel --reload` 只是给运行中的进程发通知，进程没跑就静默丢失，
+  # 会导致 build/ 缺失、build/squirrel.yaml 缺失（分应用切换整体失效）。
+  if [ -f "$SCRIPT_DIR/deploy.sh" ]; then
+    RIME_DIR="$RIME_DIR" bash "$SCRIPT_DIR/deploy.sh" || true
+  fi
   if [ -f "$SQUIRREL_APP/Contents/MacOS/Squirrel" ]; then
-    "$SQUIRREL_APP/Contents/MacOS/Squirrel" --reload || true
     "$SQUIRREL_APP/Contents/MacOS/Squirrel" --sync || true
   fi
 elif [ "$PLATFORM" = "linux" ]; then
+  if [ -f "$SCRIPT_DIR/deploy.sh" ]; then
+    RIME_DIR="$RIME_DIR" bash "$SCRIPT_DIR/deploy.sh" || true
+  fi
   if command -v fcitx5-remote >/dev/null 2>&1; then
     fcitx5-remote -r >/dev/null 2>&1 || true
   fi

@@ -202,8 +202,8 @@ if [ "$FORCE_PUSH" = true ]; then
   git add vault.enc custom_phrase.example.txt snippets.yaml snippets.custom.example.yaml 2>/dev/null || true
   git commit -m "restore: 强制恢复并覆盖云端私密数据 $(date '+%Y-%m-%d %H:%M:%S')" || true
   git push origin main
-  if [ -f "/Library/Input Methods/Squirrel.app/Contents/MacOS/Squirrel" ]; then
-    "/Library/Input Methods/Squirrel.app/Contents/MacOS/Squirrel" --reload || true
+  if [ -f "$SCRIPT_DIR/deploy.sh" ]; then
+    RIME_DIR="$RIME_DIR" QUIET=true bash "$SCRIPT_DIR/deploy.sh" || true
   fi
   notify_user "Rime 词频同步" "恢复完成" "🎉 本地权威版本已成功强制推送到云端！"
   echo -e "${GREEN}🎉 权威版本已成功覆盖并推送到云端！${NC}"
@@ -256,8 +256,8 @@ if [ -f "$SCRIPT_DIR/vault.enc" ]; then
         fi
         rm -rf "$TMP_UNPACK_DIR"
         echo -e "${GREEN}🎉 本地已成功强制以云端权威版本完全重置！${NC}"
-        if [ -f "/Library/Input Methods/Squirrel.app/Contents/MacOS/Squirrel" ]; then
-          "/Library/Input Methods/Squirrel.app/Contents/MacOS/Squirrel" --reload || true
+        if [ -f "$SCRIPT_DIR/deploy.sh" ]; then
+          RIME_DIR="$RIME_DIR" QUIET=true bash "$SCRIPT_DIR/deploy.sh" || true
         fi
         notify_user "Rime 词频同步" "强制重置完成" "🎉 本地已完全以云端权威数据重置！"
         exit 0
@@ -475,8 +475,8 @@ print(len(phrase_map))
 " 2>/dev/null || echo "0")
 if [ "$SYNCED_COUNT" -gt 0 ] 2>/dev/null; then
   echo -e "${GREEN}✅ 成功同步 $SYNCED_COUNT 条系统短语（与 iCloud 完全对齐，置顶第 1 位）！${NC}"
-  if [ -f "/Library/Input Methods/Squirrel.app/Contents/MacOS/Squirrel" ]; then
-    "/Library/Input Methods/Squirrel.app/Contents/MacOS/Squirrel" --reload || true
+  if [ -f "$SCRIPT_DIR/deploy.sh" ]; then
+    RIME_DIR="$RIME_DIR" QUIET=true bash "$SCRIPT_DIR/deploy.sh" || true
   fi
 fi
 
