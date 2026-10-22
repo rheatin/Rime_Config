@@ -54,8 +54,11 @@ patch:
     border_width: 10                       # 左右呼吸边距
     line_spacing: 6
     spacing: 12
-    font_face: "Lucida Grande, Symbols Nerd Font Mono, Symbols Nerd Font"
-    font_point: 21
+    # ⚠️ 不要在这里设 font_face / font_point。
+    # SquirrelTheme 用 `fontName ?= config.getString("style/font_face")` 取值：
+    # 一旦 style/font_face 存在，配色方案里的 font_face 就永远不会生效 (?= 不覆盖)。
+    # 配色方案 (preset_color_schemes/*) 的 font_face 才是真正生效的那一份，
+    # 浅色/深色各一套字体，由 color_scheme / color_scheme_dark 切换。
     label_font_point: 13
     comment_font_point: 14
 
@@ -63,11 +66,15 @@ patch:
   preset_color_schemes/rheatin_solarized_light:
     name: "Rheatin Solarized Light"
     author: "Rheatin"
-    candidate_format: "%c\u2005%@\u2005"   # 极简微距排版
+    candidate_format: "%c %@ "   # 极简微距排版
     back_color: 0xeee3f6fd                 # Solarized Base3 柔暖象牙白底色 (0xAABBGGRR)
     border_color: 0xeee3f6fd
     text_color: 0x8236d3                   # 内嵌拼音紫红
-    font_face: "SourceHanSerifTC-Heavy, SourceHanSerifSC-Heavy, PingFang SC, Symbols Nerd Font Mono, Symbols Nerd Font, SymbolsNFM, SymbolsNF"
+    # 字体一律用 PostScript 名（CTFontManagerCopyAvailablePostScriptNames 里的名字）。
+    # 家族名 ("Symbols Nerd Font Mono") 与 PostScript 名 ("SymbolsNFM") 指向同一款字体，
+    # 两者同时写会在回退链里产生重复项，故只保留 PostScript 名。
+    # 顺序即回退链：思源宋体 -> 苹方 -> Symbols NF Mono -> Symbols NF
+    font_face: "SourceHanSerifSC-Heavy, SourceHanSerifTC-Heavy, PingFangSC-Regular, SymbolsNFM, SymbolsNF"
     font_point: 18
     label_font_point: 13
     label_color: 0x837b65                  # 序号清晰色：Solarized Base00
@@ -86,7 +93,8 @@ patch:
     border_color: 0xee362b00
     text_color: 0x8236d3
     # 主体思源宋体 + 苹方 + Symbols Nerd Font 符号回退链
-    font_face: "SourceHanSerifTC-Heavy, SourceHanSerifSC-Heavy, PingFang SC, Symbols Nerd Font Mono, Symbols Nerd Font, SymbolsNFM, SymbolsNF"
+    # （字体名与浅色方案保持一致，均使用 PostScript 名）
+    font_face: "SourceHanSerifSC-Heavy, SourceHanSerifTC-Heavy, PingFangSC-Regular, SymbolsNFM, SymbolsNF"
     font_point: 18
     label_font_point: 13
     label_color: 0xa1a093                  # 序号清晰色：Solarized Base1 柔亮灰白

@@ -50,6 +50,37 @@ fi
 log() { [ "$QUIET" = "true" ] || echo -e "$@"; }
 
 # ---------------------------------------------------------------------------
+# 0. 同步仓库里的自定义配置到 Rime 用户目录
+#    仓库 (Rime_Config) 是配置的权威来源，用户目录 ~/Library/Rime 是运行目录。
+#    少了这一步，改了仓库里的 squirrel.custom.yaml 也不会生效 ——
+#    部署用的仍是用户目录里的旧副本。
+# ---------------------------------------------------------------------------
+sync_configs() {
+  [ -d "$SCRIPT_DIR" ] || return 0
+
+  local copied=0
+  for f in squirrel.custom.yaml default.custom.yaml rime_frost.custom.yaml \
+           snippets.custom.yaml snippets.yaml symbols_v.yaml \
+           rime_frost_aux.dict.yaml rime_frost_aux.schema.yaml; do
+    if [ -f "$SCRIPT_DIR/$f" ]; then
+      mkdir -p "$RIME_DIR"
+      cp -f "$SCRIPT_DIR/$f" "$RIME_DIR/" 2>/dev/null && copied=$((copied + 1))
+    fi
+  done
+
+  # Lua 扩展
+  if [ -d "$SCRIPT_DIR/lua" ]; then
+    mkdir -p "$RIME_DIR/lua"
+    cp -rf "$SCRIPT_DIR/lua/"* "$RIME_DIR/lua/" 2>/dev/null || true
+    copied=$((copied + 1))
+  fi
+
+  if [ "$copied" -gt 0 ]; then
+    log "${GREEN}✅ 已同步 $copied 组仓库配置到 $RIME_DIR${NC}"
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # 1. 编译 schema / 词典 / build/default.yaml
 # ---------------------------------------------------------------------------
 deploy_schemas() {
@@ -147,10 +178,24 @@ verify() {
     log "${RED}❌ 没有编译出任何 schema${NC}"
     ok=1
   fi
+  # 依赖词典必须真的编译出来了。
+  # rime_frost.schema.yaml 的 dependencies 声明了 rime_frost_aux，
+  # 它缺失时部署日志会报 "missing input schema; skipped unsatisfied dependency"，
+  # 表现为 `` 反查功能失效 —— 但部署本身仍返回 0，所以必须单独校验。
+  if [ -f "$RIME_DIR/rime_frost.schema.yaml" ] \
+     && grep -q "rime_frost_aux" "$RIME_DIR/rime_frost.schema.yaml" 2>/dev/null; then
+    if [ -f "$RIME_DIR/build/rime_frost_aux.table.bin" ]; then
+      log "${GREEN}✅ 依赖词典 rime_frost_aux 已编译${NC}"
+    else
+      log "${RED}❌ 缺少 build/rime_frost_aux.table.bin（依赖词典未编译，\`\` 反查会失效）${NC}"
+      ok=1
+    fi
+  fi
   return $ok
 }
 
 main() {
+  sync_configs
   deploy_schemas || true
   deploy_squirrel_yaml || true
   if verify; then

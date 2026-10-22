@@ -318,6 +318,25 @@ if [ -d "$SCRIPT_DIR/fonts" ]; then
     fi
     echo -e "${GREEN}✅ 字体安装完成！${NC}"
   fi
+
+  # 8.1 刷新 macOS 字体数据库 (关键！)
+  #     字体文件拷进 ~/Library/Fonts 后，fontd 不一定立刻收录它们。
+  #     实测：拷贝后字体在磁盘上、system_profiler 也能看到，但
+  #     CTFontManagerCopyAvailablePostScriptNames() 里查不到，
+  #     于是 CoreText 解析 font_face 时静默回落到默认字体 —— 表现为
+  #     "配了思源宋体但没生效"，且没有任何报错。
+  if [ "$PLATFORM" = "macos" ]; then
+    echo -e "${BLUE}🔄 正在刷新 macOS 字体数据库...${NC}"
+    # touch 一下能触发 fontd 重新扫描该目录
+    touch "$FONTS_DIR"/*.otf "$FONTS_DIR"/*.ttf 2>/dev/null || true
+    sleep 2
+    # 兜底：重启 fontd 强制全量重扫（fontd 会自动被 launchd 拉起）
+    if pgrep -x fontd >/dev/null 2>&1; then
+      killall fontd 2>/dev/null || true
+      sleep 3
+    fi
+    echo -e "${GREEN}✅ 字体数据库已刷新${NC}"
+  fi
 fi
 
 # 9. 导入个人自造词与历史词频记忆
