@@ -65,3 +65,11 @@ patch:
     - simplifier@traditionalize
     - simplifier@mars
     - uniquifier
+
+  # 英文词典权重。
+  # 默认 0.7 太低：在中文模式下打英文单词时，一旦退格删除一个字母，
+  # 剩余输入码会被重新按拼音切分，中文句子立刻抢占第 1 位，
+  # 正在输入的英文词整个消失（看起来像"回退一格，整段被取消"）。
+  # 提高到 2 后：英文词（含补全）稳定置顶，同时不影响中文候选
+  # （实测 men/fan/tan/pin/dan 等与英文同形的拼音音节仍正确给出中文）。
+  "melt_eng/initial_quality": 2
