@@ -157,7 +157,37 @@ deploy_squirrel_yaml() {
 }
 
 # ---------------------------------------------------------------------------
-# 3. 校验关键产物
+# 3. 确保输入源在"已启用"列表里 (macOS)
+#    TIS 层的 enabled 与 用户启用列表 (com.apple.HIToolbox AppleEnabledInputSources，
+#    即输入法菜单的数据源) 是两回事。
+#    Squirrel 自带的 --enable-input-source 会误判（TIS 层 IsEnabled=true 就跳过），
+#    导致输入法菜单里根本选不到"鼠须管"。
+#    典型诱因：macOS 更新会重置第三方输入源的注册与启用状态。
+# ---------------------------------------------------------------------------
+ensure_enabled_list() {
+  if [ "$OS" != "Darwin" ]; then return 0; fi
+
+  if ! defaults read com.apple.HIToolbox AppleEnabledInputSources 2>/dev/null | \
+       grep -q "im.rime.inputmethod.Squirrel"; then
+    log "${YELLOW}⚠️ 输入源未在用户启用列表中，正在添加（否则输入法菜单选不到）...${NC}"
+    defaults write com.apple.HIToolbox AppleEnabledInputSources -array-add \
+      '{InputSourceKind = "Input Mode"; "Bundle ID" = "im.rime.inputmethod.Squirrel"; "Input Mode" = "im.rime.inputmethod.Squirrel.Hans";}'
+    # 输入法菜单进程重启后重建菜单
+    killall TextInputMenuAgent 2>/dev/null || true
+    sleep 1
+  fi
+
+  if defaults read com.apple.HIToolbox AppleEnabledInputSources 2>/dev/null | \
+       grep -q "im.rime.inputmethod.Squirrel"; then
+    log "${GREEN}✅ 输入源已在启用列表中${NC}"
+  else
+    log "${RED}❌ 输入源启用失败，请到 系统设置 → 键盘 → 输入法 手动添加鼠须管${NC}"
+    return 1
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# 4. 校验关键产物
 # ---------------------------------------------------------------------------
 verify() {
   local ok=0
@@ -198,6 +228,7 @@ main() {
   sync_configs
   deploy_schemas || true
   deploy_squirrel_yaml || true
+  ensure_enabled_list || true
   if verify; then
     log "${GREEN}🎉 Rime 部署完成且校验通过${NC}"
   else
