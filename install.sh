@@ -83,6 +83,17 @@ if [ "$PLATFORM" = "macos" ]; then
     echo -e "${GREEN}✅ 检测到已安装 Squirrel (鼠须管)${NC}"
   fi
 
+  # 3.1 注册并启用输入源 (关键！)
+  #     macOS 更新或应用异常退出后，输入源注册可能丢失 —— 症状是输入法菜单里
+  #     根本选不到"鼠须管"。TISRegisterInputSource 需要重新执行一次。
+  #     注意：直接 cp 到 /Library/Input Methods 的方式（dmg 路径）不会自动注册。
+  if [ -x "$SQUIRREL_APP/Contents/MacOS/Squirrel" ]; then
+    echo -e "${BLUE}🔧 正在注册并启用输入源...${NC}"
+    "$SQUIRREL_APP/Contents/MacOS/Squirrel" --register-input-source >/dev/null 2>&1 || true
+    "$SQUIRREL_APP/Contents/MacOS/Squirrel" --enable-input-source >/dev/null 2>&1 || true
+    echo -e "${GREEN}✅ 输入源已注册并启用${NC}"
+  fi
+
 elif [ "$PLATFORM" = "linux" ]; then
   if ! command -v fcitx5 >/dev/null 2>&1 && ! command -v ibus >/dev/null 2>&1; then
     echo -e "${YELLOW}🔍 检测到未安装 Fcitx5，尝试通过包管理器安装 fcitx5-rime...${NC}"
