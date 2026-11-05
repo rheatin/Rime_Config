@@ -1,0 +1,24 @@
+# ==============================================================================
+# 🎨 小狼毫 Windows 个人外观与字体覆盖配置 (weasel.user.yaml)
+# 说明：此文件受 .gitignore 保护，绝不入公共 Git 仓库，由 AES-256 (vault.enc) 加密同步。
+# 复制此文件为 weasel.user.yaml 即可覆盖默认字体和配色，跨设备漫游且 Git 追更永不冲突！
+# ==============================================================================
+
+patch:
+  # 自选字体覆盖 (例如使用微软雅黑、霞鹜文楷、Consolas 等)
+  "style/font_face": "Microsoft YaHei, LXGW WenKai, SimSun, Symbols Nerd Font Mono, Symbols Nerd Font"
+  "style/label_font_face": "Microsoft YaHei"
+  "style/comment_font_face": "Microsoft YaHei"
+
+  # 自选字号大小
+  "style/font_point": 13
+  "style/label_font_point": 10
+
+  # 自选配色方案
+  # "style/color_scheme": aqua
+  # "style/color_scheme_dark": dark_temple
+
+  # 个人专属 App 中英文切换白名单追加
+  # app_options:
+  #   code.exe:
+  #     ascii_mode: true

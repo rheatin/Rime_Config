@@ -1,0 +1,25 @@
+# ==============================================================================
+# 🎨 鼠须管 macOS 个人外观与字体覆盖配置 (squirrel.user.yaml)
+# 说明：此文件受 .gitignore 保护，绝不入公共 Git 仓库，由 AES-256 (vault.enc) 加密同步。
+# 复制此文件为 squirrel.user.yaml 即可覆盖默认的思源宋体和配色，跨设备漫游且 Git 追更永不冲突！
+# ==============================================================================
+
+patch:
+  # 自选字体覆盖 (支持苹方、霞鹜文楷、JetBrains Mono、Maple Mono 等)
+  # 注意：字体名使用 PostScript 名，并在末尾保留 SymbolsNFM 回退链
+  preset_color_schemes/rheatin_solarized_light/font_face: "PingFangSC-Regular, SymbolsNFM, SymbolsNF"
+  preset_color_schemes/rheatin_solarized/font_face: "PingFangSC-Regular, SymbolsNFM, SymbolsNF"
+  
+  # 自选字号大小
+  preset_color_schemes/rheatin_solarized_light/font_point: 18
+  preset_color_schemes/rheatin_solarized/font_point: 18
+
+  # 自选默认配色方案 (若不想使用 Solarized，可指定为系统内置配色如 aqua / solarized_rock 等)
+  # style/color_scheme: aqua
+  # style/color_scheme_dark: solarized_rock
+
+  # 个人专属 App 中英文切换白名单追加
+  # app_options:
+  #   com.microsoft.VSCode:
+  #     ascii_mode: true
+  #     no_inline: true

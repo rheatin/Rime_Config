@@ -30,12 +30,17 @@ NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+OS="$(uname -s)"
+if [ "$OS" = "Darwin" ]; then
+  DEFAULT_RIME_DIR="$HOME/Library/Rime"
+else
+  DEFAULT_RIME_DIR="$HOME/.local/share/rime"
+fi
+
 # 允许外部覆盖
-RIME_DIR="${RIME_DIR:-$HOME/Library/Rime}"
+RIME_DIR="${RIME_DIR:-$DEFAULT_RIME_DIR}"
 SQUIRREL_APP="${SQUIRREL_APP:-/Library/Input Methods/Squirrel.app}"
 QUIET="${QUIET:-false}"
-
-OS="$(uname -s)"
 
 if [ "$OS" = "Darwin" ]; then
   SHARED_DATA_DIR="$SQUIRREL_APP/Contents/SharedSupport"
@@ -58,15 +63,38 @@ log() { [ "$QUIET" = "true" ] || echo -e "$@"; }
 sync_configs() {
   [ -d "$SCRIPT_DIR" ] || return 0
 
+  # 1. 运行核心配置动态生成引擎 (根据 .rime_profile 动态挂载词典与方案补丁)
+  if [ -f "$SCRIPT_DIR/tools/rime_generator.py" ] && command -v python3 >/dev/null 2>&1; then
+    python3 "$SCRIPT_DIR/tools/rime_generator.py" >/dev/null 2>&1 || true
+  fi
+
   local copied=0
-  for f in squirrel.custom.yaml default.custom.yaml rime_frost.custom.yaml \
-           snippets.custom.yaml snippets.yaml symbols_v.yaml \
-           rime_frost_aux.dict.yaml rime_frost_aux.schema.yaml; do
-    if [ -f "$SCRIPT_DIR/$f" ]; then
-      mkdir -p "$RIME_DIR"
-      cp -f "$SCRIPT_DIR/$f" "$RIME_DIR/" 2>/dev/null && copied=$((copied + 1))
-    fi
+  mkdir -p "$RIME_DIR"
+
+  # 同步核心 YAML 与词典文件
+  for f in *.custom.yaml *.dict.yaml symbols_v.yaml snippets.yaml snippets.custom.yaml custom_phrase.txt; do
+    for filepath in "$SCRIPT_DIR"/$f; do
+      [ -f "$filepath" ] || continue
+      filename="$(basename "$filepath")"
+      cp -f "$filepath" "$RIME_DIR/" 2>/dev/null && copied=$((copied + 1))
+    done
   done
+
+  # 2. 动态融合用户个人外观覆盖 (*.user.yaml)
+  if [ -f "$SCRIPT_DIR/tools/rime_generator.py" ] && command -v python3 >/dev/null 2>&1; then
+    python3 -c "
+import sys, os
+sys.path.insert(0, '$SCRIPT_DIR/tools')
+from rime_generator import merge_user_yaml
+for cfg in ['squirrel', 'weasel']:
+    user_p = os.path.join('$SCRIPT_DIR', f'{cfg}.user.yaml')
+    if not os.path.exists(user_p): user_p = os.path.join('$RIME_DIR', f'{cfg}.user.yaml')
+    base_p = os.path.join('$SCRIPT_DIR', f'{cfg}.custom.yaml')
+    out_p = os.path.join('$RIME_DIR', f'{cfg}.custom.yaml')
+    if os.path.exists(user_p) and os.path.exists(base_p):
+        merge_user_yaml(base_p, user_p, out_p)
+" 2>/dev/null || true
+  fi
 
   # Lua 扩展
   if [ -d "$SCRIPT_DIR/lua" ]; then
