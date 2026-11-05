@@ -328,23 +328,6 @@ if ($MoeNeedUpdate) {
     $RawMoeTemp = Join-Path $env:TEMP "toneless_moe_raw.dict.yaml"
     try {
         Invoke-WebRequest -Uri $MoeTypeReleaseUrl -OutFile $RawMoeTemp
-        if (Test-Path $RawMoeTemp) {
-            Move-Item -Path $RawMoeTemp -Destination $TargetMoe -Force
-            if ($RemoteMoeSha256) { Set-Content -Path $MoeDigestFile -Value $RemoteMoeSha256 -Encoding ASCII }
-            Write-Host "✅ MoeType 词库更新完成！" -ForegroundColor Green
-        }
-    } catch {
-        Write-Host "⚠️ MoeType 下载受阻，跳过扩展词库。" -ForegroundColor Yellow
-    }
-}
-} else {
-    Write-Host "ℹ️ 用户跳过 MoeType 萌娘百科词库挂载" -ForegroundColor Green
-    if (Test-Path $TargetMoe) { Remove-Item -Path $TargetMoe -Force -ErrorAction SilentlyContinue }
-    if (Test-Path $MoeDigestFile) { Remove-Item -Path $MoeDigestFile -Force -ErrorAction SilentlyContinue }
-}
-    $RawMoeTemp = Join-Path $env:TEMP "toneless_moe_raw.dict.yaml"
-    try {
-        Invoke-WebRequest -Uri $MoeTypeReleaseUrl -OutFile $RawMoeTemp
         
         $RimeWords = [System.Collections.Generic.HashSet[string]]::new()
         $CnDictsDir = Join-Path $RimeDir "cn_dicts"
@@ -390,6 +373,11 @@ if ($MoeNeedUpdate) {
     } catch {
         Write-Host "⚠️ MoeType 处理跳过: $_" -ForegroundColor Yellow
     }
+}
+} else {
+    Write-Host "ℹ️ 用户跳过 MoeType 萌娘百科词库挂载" -ForegroundColor Green
+    if (Test-Path $TargetMoe) { Remove-Item -Path $TargetMoe -Force -ErrorAction SilentlyContinue }
+    if (Test-Path $MoeDigestFile) { Remove-Item -Path $MoeDigestFile -Force -ErrorAction SilentlyContinue }
 }
 
 # 6. 复制个人自定义配置与聚合词库定义
