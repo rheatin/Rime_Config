@@ -49,7 +49,14 @@ if [ "$QUIET" = false ]; then
   echo -e "${BLUE}🧹 正在扫描并清理 [${PLATFORM}] 环境下冗余的非本系统、旧方案与工程文件...${NC}"
 fi
 
-# 2. 定义冗余文件匹配规则
+# 2. 动态读取用户画像以保护当前选中的方案 (如双拼/五笔/雾凇)
+PROFILE_FILE="$SCRIPT_DIR/.rime_profile"
+[ -f "$PROFILE_FILE" ] || PROFILE_FILE="$RIME_DIR/.rime_profile"
+ACTIVE_SCHEMA="rime_frost"
+if [ -f "$PROFILE_FILE" ]; then
+  ACTIVE_SCHEMA="$(awk -F'=' '/^RIME_SCHEMA=/ {gsub(/["'\'' ]/, "", $2); print $2}' "$PROFILE_FILE" 2>/dev/null || echo "rime_frost")"
+fi
+
 REDUNDANT_PATTERNS=(
   # 台湾注音方案
   "bopomofo*"
@@ -97,6 +104,17 @@ REDUNDANT_PATTERNS=(
   "recipe.yaml"
   "trash"
 )
+
+# 动态过滤白名单：当前用户正在使用的主方案及其组件，坚决不清理
+ACTIVE_PATTERNS=()
+for pat in "${REDUNDANT_PATTERNS[@]}"; do
+  if [[ "$ACTIVE_SCHEMA" == *"flypy"* ]] && [[ "$pat" == *"double_pinyin"* ]]; then continue; fi
+  if [[ "$ACTIVE_SCHEMA" == *"double_pinyin"* ]] && [[ "$pat" == *"double_pinyin"* ]]; then continue; fi
+  if [[ "$ACTIVE_SCHEMA" == *"wubi"* ]] && [[ "$pat" == *"wubi"* ]]; then continue; fi
+  if [[ "$ACTIVE_SCHEMA" == *"rime_ice"* ]] && [[ "$pat" == *"rime_ice"* ]]; then continue; fi
+  ACTIVE_PATTERNS+=("$pat")
+done
+REDUNDANT_PATTERNS=("${ACTIVE_PATTERNS[@]}")
 
 # 跨系统配置文件隔离：
 # 在 macOS 上移除 Windows 小狼毫专用文件

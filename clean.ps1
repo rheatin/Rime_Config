@@ -27,7 +27,16 @@ if (-not $Quiet) {
     Write-Host "🧹 正在扫描并清理 Windows 小狼毫环境下冗余的非本系统、旧方案与工程文件..." -ForegroundColor Cyan
 }
 
-$RedundantPatterns = @(
+$ProfileFile = Join-Path $ScriptDir ".rime_profile"
+if (-not (Test-Path $ProfileFile)) { $ProfileFile = Join-Path $RimeDir ".rime_profile" }
+$ActiveSchema = "rime_frost"
+if (Test-Path $ProfileFile) {
+    Get-Content $ProfileFile -Encoding UTF8 -ErrorAction SilentlyContinue | ForEach-Object {
+        if ($_ -match '^RIME_SCHEMA=["'']?([^"'']+)["'']?') { $ActiveSchema = $Matches[1] }
+    }
+}
+
+$RawPatterns = @(
     # macOS 鼠须管专用配置与属性列表
     "squirrel.*",
     "*.plist",
@@ -49,8 +58,7 @@ $RedundantPatterns = @(
     "rime_frost_moqi*",
     "zh-moqi.gram",
 
-    # 辅助码拆分方案
-    "rime_frost_aux*",
+    # 注意: rime_frost_aux* 不可删除! (rime_frost.schema.yaml 依赖其进行反查)
 
     # 笔画反查方案 (部件拆字 radical_pinyin 保留给 u 拆字模式)
     "stroke*",
@@ -87,6 +95,16 @@ $RedundantPatterns = @(
     "recipe.yaml",
     "trash"
 )
+
+# 动态过滤白名单：当前用户正在使用的主方案，坚决不清理
+$RedundantPatterns = @()
+foreach ($pat in $RawPatterns) {
+    if (($ActiveSchema -like "*flypy*") -and ($pat -like "*double_pinyin*")) { continue }
+    if (($ActiveSchema -like "*double_pinyin*") -and ($pat -like "*double_pinyin*")) { continue }
+    if (($ActiveSchema -like "*wubi*") -and ($pat -like "*wubi*")) { continue }
+    if (($ActiveSchema -like "*rime_ice*") -and ($pat -like "*rime_ice*")) { continue }
+    $RedundantPatterns += $pat
+}
 
 $CleanCount = 0
 
