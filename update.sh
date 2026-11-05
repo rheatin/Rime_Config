@@ -187,7 +187,8 @@ except: pass
     echo -e "${GREEN}✅ MoeType 萌娘百科词库已是最新，跳过下载！${NC}"
   else
     echo -e "${BLUE}🌸 正在拉取 MoeType 最新词库并进行动态去重...${NC}"
-    RAW_MOE_TEMP="$(mktemp "${TMPDIR:-/tmp}/moe_raw_XXXXXX.dict.yaml")"
+    RAW_MOE_DIR="$(mktemp -d)"
+    RAW_MOE_TEMP="$RAW_MOE_DIR/moe_raw.dict.yaml"
     if curl -fsSL "$MOETYPE_RELEASE_URL" -o "$RAW_MOE_TEMP" 2>/dev/null; then
       python3 -c "
 import os
@@ -219,11 +220,11 @@ with open('$RAW_MOE_TEMP', 'r', encoding='utf-8') as fin, open(out_file, 'w', en
         else: kept += 1; fout.write(line)
 print(f'   去重完成：保留独有词条 {kept:,}，剔除重复词条 {removed:,}')
 "
-      rm -f "$RAW_MOE_TEMP"
+      rm -rf "$RAW_MOE_DIR" 2>/dev/null || true
       [ -n "$REMOTE_MOE_SHA" ] && echo "$REMOTE_MOE_SHA" > "$MOE_DIGEST_FILE"
       echo -e "${GREEN}✅ MoeType 动态去重完成！${NC}"
     else
-      rm -f "$RAW_MOE_TEMP"
+      rm -rf "$RAW_MOE_DIR" 2>/dev/null || true
       echo -e "${YELLOW}⚠️ MoeType 下载受阻，保留本地旧版继续。${NC}"
     fi
   fi

@@ -279,9 +279,11 @@ else
 fi
 
 mkdir -p "$RIME_DIR"
-TEMP_FRAMEWORK="$(mktemp -d)"
-FRAMEWORK_ZIP="$(mktemp "${TMPDIR:-/tmp}/rime_fw_XXXXXX.zip")"
-EXTRACT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/rime_fw_extract_XXXXXX")"
+TEMP_FW_DIR="$(mktemp -d)"
+TEMP_FRAMEWORK="$TEMP_FW_DIR/clone"
+FRAMEWORK_ZIP="$TEMP_FW_DIR/fw.zip"
+EXTRACT_DIR="$TEMP_FW_DIR/extracted"
+mkdir -p "$EXTRACT_DIR"
 CLONE_SUCCESS=false
 
 CLONE_URLS=(
@@ -331,7 +333,7 @@ except Exception:
   done
 fi
 
-rm -rf "$TEMP_FRAMEWORK" "$FRAMEWORK_ZIP" "$EXTRACT_DIR" 2>/dev/null || true
+rm -rf "$TEMP_FW_DIR" 2>/dev/null || true
 
 if [ "$CLONE_SUCCESS" = false ]; then
   if [ -f "$RIME_DIR/rime_frost.schema.yaml" ] || [ -f "$RIME_DIR/rime_ice.schema.yaml" ]; then

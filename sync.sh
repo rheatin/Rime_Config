@@ -188,7 +188,8 @@ if [ "$FORCE_PUSH" = true ]; then
   VAULT_PASS=$(get_vault_pass || true)
   if [ -n "$VAULT_PASS" ]; then
     export RIME_VAULT_PASS="$VAULT_PASS"
-    TMP_TAR="$(mktemp "${TMPDIR:-/tmp}/rime_vault_XXXXXX.tar.gz")"
+    TMP_VAULT_DIR="$(mktemp -d)"
+    TMP_TAR="$TMP_VAULT_DIR/rime_vault.tar.gz"
     USER_FILES=()
     for uf in "$SCRIPT_DIR"/*.user.yaml "$SCRIPT_DIR"/.rime_profile; do
       [ -f "$uf" ] && USER_FILES+=("$(basename "$uf")")
@@ -197,9 +198,9 @@ if [ "$FORCE_PUSH" = true ]; then
     if [ -f "$TMP_TAR" ]; then
       openssl enc -aes-256-cbc -salt -pbkdf2 -pass env:RIME_VAULT_PASS -in "$TMP_TAR" -out "$SCRIPT_DIR/vault.enc" 2>/dev/null || \
       echo "$VAULT_PASS" | openssl enc -aes-256-cbc -salt -pbkdf2 -pass stdin -in "$TMP_TAR" -out "$SCRIPT_DIR/vault.enc" 2>/dev/null || true
-      rm -f "$TMP_TAR"
       echo -e "${GREEN}🔒 权威版本已加密打包 (vault.enc)！${NC}"
     fi
+    rm -rf "$TMP_VAULT_DIR" 2>/dev/null || true
     unset RIME_VAULT_PASS
   fi
 
@@ -228,8 +229,10 @@ if [ -f "$SCRIPT_DIR/vault.enc" ]; then
     echo -e "${RED}❌ 无法获取同步密码，跳过远端私密数据解密。${NC}"
   else
     export RIME_VAULT_PASS="$VAULT_PASS"
-    TMP_DEC="$(mktemp "${TMPDIR:-/tmp}/rime_vault_dec_XXXXXX.tar.gz")"
-    TMP_UNPACK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/rime_vault_unpack_XXXXXX")"
+    TMP_DEC_DIR="$(mktemp -d)"
+    TMP_DEC="$TMP_DEC_DIR/rime_vault_dec.tar.gz"
+    TMP_UNPACK_DIR="$TMP_DEC_DIR/unpack"
+    mkdir -p "$TMP_UNPACK_DIR"
 
     echo -e "${BLUE}🔓 正在解密远端数据包 (vault.enc)...${NC}"
     if openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass env:RIME_VAULT_PASS -in "$SCRIPT_DIR/vault.enc" -out "$TMP_DEC" 2>/dev/null || \
@@ -257,7 +260,7 @@ if [ -f "$SCRIPT_DIR/vault.enc" ]; then
           cp -rf "$TMP_UNPACK_DIR/sync/"* "$SCRIPT_DIR/sync/" 2>/dev/null || true
           cp -rf "$TMP_UNPACK_DIR/sync/"* "$RIME_DIR/sync/" 2>/dev/null || true
         fi
-        rm -rf "$TMP_UNPACK_DIR"
+        rm -rf "$TMP_DEC_DIR" 2>/dev/null || true
         echo -e "${GREEN}🎉 本地已成功强制以云端权威版本完全重置！${NC}"
         if [ -f "$SCRIPT_DIR/deploy.sh" ]; then
           RIME_DIR="$RIME_DIR" QUIET=true bash "$SCRIPT_DIR/deploy.sh" || true
@@ -392,10 +395,10 @@ print(f'  🧩 [Git 3-Way Merge] 私密片段合并完成: {summary} (共 {len(m
         cp -f "$TMP_UNPACK_DIR/custom_phrase.txt" "$SCRIPT_DIR/custom_phrase.txt.remote" 2>/dev/null || true
       fi
 
-      rm -rf "$TMP_UNPACK_DIR"
+      rm -rf "$TMP_DEC_DIR" 2>/dev/null || true
       echo -e "${GREEN}🔓 隐私短语与自造词已成功解密同步！${NC}"
     else
-      rm -rf "$TMP_UNPACK_DIR" "$TMP_DEC"
+      rm -rf "$TMP_DEC_DIR" 2>/dev/null || true
       echo -e "${RED}❌ 严重错误：远端私密数据包 (vault.enc) 解密失败！${NC}"
       echo -e "${YELLOW}🔑 原因：当前保存的同步密码与远端不匹配（或密文损坏）。${NC}"
       echo -e "${YELLOW}🛡️ 安全保护触发：已紧急终止同步，绝不拿未解密的旧数据覆盖本地！${NC}"
@@ -533,7 +536,8 @@ fi
 VAULT_PASS=$(get_vault_pass || true)
 if [ -n "$VAULT_PASS" ]; then
   export RIME_VAULT_PASS="$VAULT_PASS"
-  TMP_TAR="$(mktemp "${TMPDIR:-/tmp}/rime_vault_XXXXXX.tar.gz")"
+  TMP_VAULT_DIR="$(mktemp -d)"
+  TMP_TAR="$TMP_VAULT_DIR/rime_vault.tar.gz"
   USER_FILES=()
   for uf in "$SCRIPT_DIR"/*.user.yaml "$SCRIPT_DIR"/.rime_profile; do
     [ -f "$uf" ] && USER_FILES+=("$(basename "$uf")")
@@ -542,9 +546,9 @@ if [ -n "$VAULT_PASS" ]; then
   if [ -f "$TMP_TAR" ]; then
     openssl enc -aes-256-cbc -salt -pbkdf2 -pass env:RIME_VAULT_PASS -in "$TMP_TAR" -out "$SCRIPT_DIR/vault.enc" 2>/dev/null || \
     echo "$VAULT_PASS" | openssl enc -aes-256-cbc -salt -pbkdf2 -pass stdin -in "$TMP_TAR" -out "$SCRIPT_DIR/vault.enc" 2>/dev/null || true
-    rm -f "$TMP_TAR"
     echo -e "${GREEN}🔒 隐私短语、私有片段与自造词已成功通过 AES-256 加密保护 (vault.enc)！${NC}"
   fi
+  rm -rf "$TMP_VAULT_DIR" 2>/dev/null || true
   unset RIME_VAULT_PASS
 fi
 
