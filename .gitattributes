@@ -1,0 +1,2 @@
+# 确保 AES-256 密文包作为二进制文件处理，避免跨分支合并/变基时产生文本冲突损坏
+vault.enc merge=binary -text

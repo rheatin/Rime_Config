@@ -5,6 +5,8 @@ moe.dedup.dict.yaml
 # 个人隐私脱敏保护 (明文短语与个人词频不入公开仓库)
 custom_phrase.txt
 snippets.custom.yaml
+.rime_profile
+*.user.yaml
 sync/
 *.key
 *.enc.tmp
@@ -17,6 +19,8 @@ sync/
 .DS_Store
 *.tmp
 *.bak
+__pycache__/
+*.pyc
 tools/*.generated.yaml
 installation.yaml
 user.yaml

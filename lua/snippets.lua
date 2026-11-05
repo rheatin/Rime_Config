@@ -75,8 +75,8 @@ local function load_yaml_snippets(filepath, default_quality)
 
         if not multiline_active then
             if s ~= "" and not s:match("^#") then
-                -- 1. 匹配触发前缀，如 /sh: 或 "/176":
-                local trigger_match = raw:match("^([/%w_%-]+):%s*$") or raw:match('^"([/%w_%-]+)":%s*$')
+                -- 1. 匹配触发前缀，如 /sh: 或 "/176": (支持行尾内联注释)
+                local trigger_match = raw:match("^([/%w_%-]+):%s*(#.*)?$") or raw:match('^"([/%w_%-]+)":%s*(#.*)?$')
                 if trigger_match then
                     cur_trigger = trigger_match
                     map[cur_trigger] = map[cur_trigger] or {}

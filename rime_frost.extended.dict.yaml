@@ -1,9 +1,9 @@
 # Rime Extended Dictionary
-# 聚合 白霜拼音 (rime-frost) 核心词库 与 MoeType (萌娘百科) 词库
+# 动态生成：根据 .rime_profile 自选词库精准挂载（杜绝缺失依赖引发编译崩溃）
 
 ---
 name: rime_frost.extended
-version: "2026.08.31"
+version: "2026.11.05"
 sort: by_weight
 use_preset_vocabulary: false
 import_tables:

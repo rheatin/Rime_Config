@@ -1,3 +1,7 @@
+# ==============================================================================
+# Rime 方案补丁: rime_frost.custom.yaml
+# 动态生成：为全拼/双拼/五笔自动满血注入 Snippets、UUID、盘古空格、退格防丢词等全部特性
+# ==============================================================================
 patch:
   # 初始状态设为英文 (reset: 1，全局默认英文，仅少数浏览器/聊天软件自动切中文)
   "switches/@0/reset": 1
@@ -9,7 +13,7 @@ patch:
   "translator/always_show_comments": false
   "translator/spelling_hints": 0
 
-  # 挂载聚合了 MoeType (萌娘百科) 的白霜拼音扩展词库
+  # 挂载聚合词库 (包含细胞词库与可选 MoeType)
   "translator/dictionary": rime_frost.extended
 
   # 自定义短语 (系统文本替换)：设置超高权重确保永远排在首选第 1 位
@@ -32,12 +36,12 @@ patch:
   'punctuator/half_shape/"': '"'
 
   # 正则识别器：
-  # 1. 严格限制计算器仅由大写 C+数字 引导 (如 C1+1)，绝不拦截任何小写 c 开头的正常拼音！
+  # 1. 严格限制计算器仅由大写 C+数字 引导 (如 C1+1)
   # 2. 释放 v 给 symbols 符号系统 (如 vfh 符号, vjt 箭头, vsz 数字)
-  # 3. 赋予 / 给 Snippets 代码片段引擎 (如 /sh, /git, /mail)
+  # 3. 赋予 / 给 Snippets 代码片段引擎 (支持短横线 -，如 /sh, /git, /todo-1)
   "recognizer/patterns/calculator": "^C[0-9].*$"
   "recognizer/patterns/punct": "^v([0-9]|10|[A-Za-z]+)$"
-  "recognizer/patterns/snippets": "^/([a-zA-Z0-9_]+)?$"
+  "recognizer/patterns/snippets": "^/([a-zA-Z0-9_-]+)?$"
 
   # 快捷键：分号 ; 快捷选第 2 项，减号 - 向上翻页，等号 = 向下翻页
   "key_binder/bindings":
@@ -49,7 +53,7 @@ patch:
   "engine/translators/@after_11": lua_translator@*uuid
   "engine/translators/@after_12": lua_translator@*snippets
 
-  # 优化滤镜列表：移除 is_in_user_dict (消除*号干扰) 和 corrector (消除多余拼音暴露)，加入盘古之白
+  # 优化滤镜列表：加入盘古之白中英微距排版滤镜
   "engine/filters":
     - reverse_lookup_filter@radical_reverse_lookup
     - lua_filter@*autocap_filter
@@ -66,10 +70,8 @@ patch:
     - simplifier@mars
     - uniquifier
 
-  # 英文词典权重。
-  # 默认 0.7 太低：在中文模式下打英文单词时，一旦退格删除一个字母，
-  # 剩余输入码会被重新按拼音切分，中文句子立刻抢占第 1 位，
-  # 正在输入的英文词整个消失（看起来像"回退一格，整段被取消"）。
-  # 提高到 2 后：英文词（含补全）稳定置顶，同时不影响中文候选
-  # （实测 men/fan/tan/pin/dan 等与英文同形的拼音音节仍正确给出中文）。
+  # 英文词典权重 (退格时不丢词)
   "melt_eng/initial_quality": 2
+
+  # 空码（无候选词）时不自动整段清空，保留输入码，允许用户按退格键逐步回退修改
+  "speller/auto_clear": manual
