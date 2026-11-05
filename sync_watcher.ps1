@@ -17,7 +17,9 @@ if (-not $ScriptDir) { $ScriptDir = Join-Path $env:USERPROFILE "Rime_Config" }
 $SyncScript = Join-Path $ScriptDir "sync.ps1"
 $LogFile = Join-Path $env:TEMP "rime_sync.log"
 $StartupFolder = [Environment]::GetFolderPath("Startup")
+$RimeDir = Join-Path $env:APPDATA "Rime"
 $VbsPath = Join-Path $StartupFolder "RimeSyncWatcher.vbs"
+$SilentVbsPath = Join-Path $RimeDir "RimeSyncWatcher.vbs"
 
 function Show-Balloon {
     param([string]$Title = "Rime 词频守护", [string]$Message = "")
@@ -45,8 +47,12 @@ if ($Status) {
 if ($Uninstall) {
     if (Test-Path $VbsPath) {
         Remove-Item -Path $VbsPath -Force -ErrorAction SilentlyContinue
-        Write-Host "✅ 已从开机启动项中移除守护服务脚本。" -ForegroundColor Green
     }
+    $LnkPath = Join-Path $StartupFolder "RimeSyncWatcher.lnk"
+    if (Test-Path $LnkPath) { Remove-Item -Path $LnkPath -Force -ErrorAction SilentlyContinue }
+    if (Test-Path $SilentVbsPath) { Remove-Item -Path $SilentVbsPath -Force -ErrorAction SilentlyContinue }
+    schtasks /delete /tn "RimeSyncWatcher" /f 2>$null | Out-Null
+    Write-Host "✅ 已从开机启动项与计划任务中移除守护服务。" -ForegroundColor Green
     $Procs = Get-WmiObject Win32_Process | Where-Object { $_.CommandLine -like "*sync_watcher.ps1*" }
     if ($Procs) {
         $Procs | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
@@ -55,13 +61,29 @@ if ($Uninstall) {
     return
 }
 
-# 3. 安装开机自启并启动
+# 3. 安装开机自启并启动 (纯静默无黑框弹窗)
 if ($Install) {
-    $VbsContent = "CreateObject(`"Wscript.Shell`").Run `"powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"`"$SyncScript`" -Auto`", 0, False"
-    $WatcherVbsContent = "CreateObject(`"Wscript.Shell`").Run `"powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"`"$PSCommandPath`"`"`", 0, False"
-    Set-Content -Path $VbsPath -Value $WatcherVbsContent -Encoding ASCII
-    Start-Process "wscript.exe" -ArgumentList "`"$VbsPath`"" -WindowStyle Hidden
-    Write-Host "✅ 自动同步监听守护进程已成功安装并启动！" -ForegroundColor Green
+    if (-not (Test-Path $RimeDir)) { New-Item -ItemType Directory -Path $RimeDir -Force | Out-Null }
+    $PsExe = if (Get-Command pwsh -ErrorAction SilentlyContinue) { "pwsh.exe" } else { "powershell.exe" }
+    $WatcherVbsContent = "CreateObject(`"Wscript.Shell`").Run `"$PsExe -NoProfile -NonInteractive -NoLogo -ExecutionPolicy Bypass -WindowStyle Hidden -File `"`"$PSCommandPath`"`"`", 0, False"
+    Set-Content -Path $SilentVbsPath -Value $WatcherVbsContent -Encoding ASCII
+
+    if (Test-Path $VbsPath) { Remove-Item -Path $VbsPath -Force -ErrorAction SilentlyContinue }
+
+    $SchTaskCmd = "wscript.exe //b //nologo `"$SilentVbsPath`""
+    schtasks /create /tn "RimeSyncWatcher" /tr "$SchTaskCmd" /sc onlogon /f 2>$null | Out-Null
+
+    if ($LASTEXITCODE -ne 0) {
+        $WshShell = New-Object -ComObject WScript.Shell
+        $Shortcut = $WshShell.CreateShortcut((Join-Path $StartupFolder "RimeSyncWatcher.lnk"))
+        $Shortcut.TargetPath = "wscript.exe"
+        $Shortcut.Arguments = "//b //nologo `"$SilentVbsPath`""
+        $Shortcut.WindowStyle = 7
+        $Shortcut.Save()
+    }
+
+    Start-Process "wscript.exe" -ArgumentList "//b //nologo `"$SilentVbsPath`""
+    Write-Host "✅ 自动同步监听守护进程已成功安装并启动（纯静默无控制台弹窗）！" -ForegroundColor Green
     return
 }
 
@@ -115,9 +137,12 @@ $Action = {
     }
 
     if (Test-Path $ScriptToRun) {
-        $PsExe = if (Get-Command pwsh -ErrorAction SilentlyContinue) { "pwsh.exe" } else { "powershell.exe" }
-        Add-Content -Path $Log -Value "[$Time] 🚀 正在后台唤起 ($PsExe): $ScriptToRun -Auto" -ErrorAction SilentlyContinue
-        Start-Process $PsExe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$ScriptToRun`" -Auto" -WindowStyle Hidden
+        Add-Content -Path $Log -Value "[$Time] 🚀 正在静默执行: $ScriptToRun -Auto" -ErrorAction SilentlyContinue
+        try {
+            & $ScriptToRun -Auto *>> $Log
+        } catch {
+            Add-Content -Path $Log -Value "[$Time] ❌ 执行异常: $_" -ErrorAction SilentlyContinue
+        }
     } else {
         Add-Content -Path $Log -Value "[$Time] ❌ 未找到同步脚本: $ScriptToRun" -ErrorAction SilentlyContinue
     }

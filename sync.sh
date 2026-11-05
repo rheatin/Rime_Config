@@ -188,14 +188,19 @@ if [ "$FORCE_PUSH" = true ]; then
   VAULT_PASS=$(get_vault_pass || true)
   if [ -n "$VAULT_PASS" ]; then
     export RIME_VAULT_PASS="$VAULT_PASS"
-    TMP_TAR="/tmp/rime_vault_$$.tar.gz"
-    tar -czf "$TMP_TAR" -C "$SCRIPT_DIR" custom_phrase.txt snippets.custom.yaml sync 2>/dev/null || true
+    TMP_TAR="$(mktemp "${TMPDIR:-/tmp}/rime_vault_XXXXXX.tar.gz")"
+    USER_FILES=()
+    for uf in "$SCRIPT_DIR"/*.user.yaml "$SCRIPT_DIR"/.rime_profile; do
+      [ -f "$uf" ] && USER_FILES+=("$(basename "$uf")")
+    done
+    tar -czf "$TMP_TAR" -C "$SCRIPT_DIR" custom_phrase.txt snippets.custom.yaml "${USER_FILES[@]}" sync 2>/dev/null || true
     if [ -f "$TMP_TAR" ]; then
       openssl enc -aes-256-cbc -salt -pbkdf2 -pass env:RIME_VAULT_PASS -in "$TMP_TAR" -out "$SCRIPT_DIR/vault.enc" 2>/dev/null || \
-      openssl enc -aes-256-cbc -salt -pbkdf2 -pass "pass:$VAULT_PASS" -in "$TMP_TAR" -out "$SCRIPT_DIR/vault.enc" 2>/dev/null || true
+      echo "$VAULT_PASS" | openssl enc -aes-256-cbc -salt -pbkdf2 -pass stdin -in "$TMP_TAR" -out "$SCRIPT_DIR/vault.enc" 2>/dev/null || true
       rm -f "$TMP_TAR"
       echo -e "${GREEN}🔒 权威版本已加密打包 (vault.enc)！${NC}"
     fi
+    unset RIME_VAULT_PASS
   fi
 
   cd "$SCRIPT_DIR"
@@ -223,13 +228,11 @@ if [ -f "$SCRIPT_DIR/vault.enc" ]; then
     echo -e "${RED}❌ 无法获取同步密码，跳过远端私密数据解密。${NC}"
   else
     export RIME_VAULT_PASS="$VAULT_PASS"
-    TMP_DEC="/tmp/rime_vault_dec_$$.tar.gz"
-    TMP_UNPACK_DIR="/tmp/rime_vault_unpack_$$"
-    mkdir -p "$TMP_UNPACK_DIR"
+    TMP_DEC="$(mktemp "${TMPDIR:-/tmp}/rime_vault_dec_XXXXXX.tar.gz")"
+    TMP_UNPACK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/rime_vault_unpack_XXXXXX")"
 
     echo -e "${BLUE}🔓 正在解密远端数据包 (vault.enc)...${NC}"
     if openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass env:RIME_VAULT_PASS -in "$SCRIPT_DIR/vault.enc" -out "$TMP_DEC" 2>/dev/null || \
-       openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass "pass:$VAULT_PASS" -in "$SCRIPT_DIR/vault.enc" -out "$TMP_DEC" 2>/dev/null || \
        echo "$VAULT_PASS" | openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass stdin -in "$SCRIPT_DIR/vault.enc" -out "$TMP_DEC" 2>/dev/null; then
       
       tar -xzf "$TMP_DEC" -C "$TMP_UNPACK_DIR" 2>/dev/null || true
@@ -373,6 +376,17 @@ print(f'  🧩 [Git 3-Way Merge] 私密片段合并完成: {summary} (共 {len(m
         cp -rf "$TMP_UNPACK_DIR/sync/"* "$RIME_DIR/sync/" 2>/dev/null || true
       fi
 
+      # 复制同步过来的个人偏好画像与外观覆盖文件 (*.user.yaml)
+      if [ -f "$TMP_UNPACK_DIR/.rime_profile" ]; then
+        cp -f "$TMP_UNPACK_DIR/.rime_profile" "$SCRIPT_DIR/" 2>/dev/null || true
+        cp -f "$TMP_UNPACK_DIR/.rime_profile" "$RIME_DIR/" 2>/dev/null || true
+      fi
+      for uf in "$TMP_UNPACK_DIR"/*.user.yaml; do
+        [ -f "$uf" ] || continue
+        cp -f "$uf" "$SCRIPT_DIR/" 2>/dev/null || true
+        cp -f "$uf" "$RIME_DIR/" 2>/dev/null || true
+      done
+
       # 暂存远端 custom_phrase 供第 3 步增量合并
       if [ -f "$TMP_UNPACK_DIR/custom_phrase.txt" ]; then
         cp -f "$TMP_UNPACK_DIR/custom_phrase.txt" "$SCRIPT_DIR/custom_phrase.txt.remote" 2>/dev/null || true
@@ -400,9 +414,6 @@ fi
 if [ -f "$SCRIPT_DIR/snippets.yaml" ]; then
   cp -f "$SCRIPT_DIR/snippets.yaml" "$RIME_DIR/" 2>/dev/null || true
 fi
-if [ -f "$SCRIPT_DIR/snippets.custom.yaml" ]; then
-  cp -f "$SCRIPT_DIR/snippets.custom.yaml" "$RIME_DIR/" 2>/dev/null || true
-fi
 cp -f "$SCRIPT_DIR/rime_frost.custom.yaml" "$RIME_DIR/" 2>/dev/null || true
 cp -f "$SCRIPT_DIR/default.custom.yaml" "$RIME_DIR/" 2>/dev/null || true
 if [ "$(uname -s)" = "Darwin" ]; then
@@ -422,50 +433,51 @@ fi
 
 # 3. 在 macOS 上将苹果系统键盘「文本替换 (iCloud 同步)」导出为 custom_phrase.txt
 APPLE_DB="$HOME/Library/KeyboardServices/TextReplacements.db"
-echo -e "${BLUE}🍎 3. 正在读取苹果系统「文本替换 (iCloud)」作为权威词库...${NC}"
-SYNCED_COUNT=$(python3 -c "
+if [ "$(uname -s)" = "Darwin" ] && [ -f "$APPLE_DB" ]; then
+  echo -e "${BLUE}🍎 3. 正在读取苹果系统「文本替换 (iCloud)」作为权威词库...${NC}"
+  SYNCED_COUNT=$(python3 -c "
 import sqlite3, os
 
 db_path = '$APPLE_DB'
 phrase_map = {}
-if os.path.exists(db_path):
-    try:
-        conn = sqlite3.connect(db_path)
-        cur = conn.cursor()
-        cur.execute('SELECT ZSHORTCUT, ZPHRASE FROM ZTEXTREPLACEMENTENTRY WHERE ZWASDELETED = 0;')
-        for sc, phrase in cur.fetchall():
+try:
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute('SELECT ZSHORTCUT, ZPHRASE FROM ZTEXTREPLACEMENTENTRY WHERE ZWASDELETED = 0;')
+    for sc, phrase in cur.fetchall():
+        if sc and phrase:
+            sc = sc.strip()
+            phrase = phrase.strip()
             if sc and phrase:
-                sc = sc.strip()
-                phrase = phrase.strip()
-                if sc and phrase:
-                    phrase_map[(phrase, sc)] = '1000'
-    except Exception:
-        pass
+                phrase_map[(phrase, sc)] = '1000'
+except Exception:
+    pass
 
-headers = [
-    '# Rime table',
-    '# coding: utf-8',
-    '#@/db_name\tcustom_phrase.txt',
-    '#@/db_type\ttabledb',
-    '#',
-    '# 苹果系统「文本替换 (iCloud)」全量同步表 (全拼 26键)',
-    '# 格式：文字<Tab>编码<Tab>权重',
-    '#',
-    '# 此行之后不能写注释',
-    ''
-]
+if phrase_map:
+    headers = [
+        '# Rime table',
+        '# coding: utf-8',
+        '#@/db_name\tcustom_phrase.txt',
+        '#@/db_type\ttabledb',
+        '#',
+        '# 苹果系统「文本替换 (iCloud)」全量同步表 (全拼 26键)',
+        '# 格式：文字<Tab>编码<Tab>权重',
+        '#',
+        '# 此行之后不能写注释',
+        ''
+    ]
 
-lines = list(headers)
-for (phrase, sc), weight in sorted(phrase_map.items(), key=lambda x: (x[0][1], x[0][0])):
-    lines.append(f'{phrase}\t{sc}\t{weight}')
+    lines = list(headers)
+    for (phrase, sc), weight in sorted(phrase_map.items(), key=lambda x: (x[0][1], x[0][0])):
+        lines.append(f'{phrase}\t{sc}\t{weight}')
 
-merged_content = '\n'.join(lines) + '\n'
+    merged_content = '\n'.join(lines) + '\n'
 
-base_phrase = os.path.join('$RIME_DIR/.vault_base', 'custom_phrase.base.txt')
-for p in ['$SCRIPT_DIR/custom_phrase.txt', '$RIME_DIR/custom_phrase.txt', base_phrase]:
-    if os.path.isdir(os.path.dirname(p)):
-        with open(p, 'w', encoding='utf-8') as f:
-            f.write(merged_content)
+    base_phrase = os.path.join('$RIME_DIR/.vault_base', 'custom_phrase.base.txt')
+    for p in ['$SCRIPT_DIR/custom_phrase.txt', '$RIME_DIR/custom_phrase.txt', base_phrase]:
+        if os.path.isdir(os.path.dirname(p)):
+            with open(p, 'w', encoding='utf-8') as f:
+                f.write(merged_content)
 
 if os.path.exists('$SCRIPT_DIR/custom_phrase.txt.remote'):
     try: os.remove('$SCRIPT_DIR/custom_phrase.txt.remote')
@@ -473,20 +485,37 @@ if os.path.exists('$SCRIPT_DIR/custom_phrase.txt.remote'):
 
 print(len(phrase_map))
 " 2>/dev/null || echo "0")
-if [ "$SYNCED_COUNT" -gt 0 ] 2>/dev/null; then
-  echo -e "${GREEN}✅ 成功同步 $SYNCED_COUNT 条系统短语（与 iCloud 完全对齐，置顶第 1 位）！${NC}"
-  if [ -f "$SCRIPT_DIR/deploy.sh" ]; then
-    RIME_DIR="$RIME_DIR" QUIET=true bash "$SCRIPT_DIR/deploy.sh" || true
+  if [ "$SYNCED_COUNT" -gt 0 ] 2>/dev/null; then
+    echo -e "${GREEN}✅ 成功同步 $SYNCED_COUNT 条系统短语（与 iCloud 完全对齐，置顶第 1 位）！${NC}"
+    if [ -f "$SCRIPT_DIR/deploy.sh" ]; then
+      RIME_DIR="$RIME_DIR" QUIET=true bash "$SCRIPT_DIR/deploy.sh" || true
+    fi
   fi
+elif [ -f "$SCRIPT_DIR/custom_phrase.txt.remote" ]; then
+  # 非 macOS 或未读取到 iCloud 数据库时，应用从远端密文包解密出来的权威版本
+  cp -f "$SCRIPT_DIR/custom_phrase.txt.remote" "$SCRIPT_DIR/custom_phrase.txt" 2>/dev/null || true
+  cp -f "$SCRIPT_DIR/custom_phrase.txt.remote" "$RIME_DIR/custom_phrase.txt" 2>/dev/null || true
+  rm -f "$SCRIPT_DIR/custom_phrase.txt.remote" 2>/dev/null || true
+  echo -e "${GREEN}✅ 已应用解密出的权威 custom_phrase.txt 短语库！${NC}"
 fi
 
 # 4. 归档词频文件并进行 AES-256 密文打包 (保护隐私短语与个人打字记录)
 echo -e "${BLUE}📦 4. 正在归档词频并进行 AES-256 加密打包...${NC}"
 
-# 4.0 确保用户目录中的私密片段同步回仓库目录 (以最新修改时间为准)
+# 4.0 确保用户目录中的私密片段同步回仓库目录 (以最新修改时间为准，跨平台兼容)
+get_file_mtime() {
+  local f="$1"
+  [ -f "$f" ] || { echo 0; return; }
+  if [ "$(uname -s)" = "Darwin" ]; then
+    stat -f %m "$f" 2>/dev/null || echo 0
+  else
+    stat -c %Y "$f" 2>/dev/null || echo 0
+  fi
+}
+
 if [ -f "$RIME_DIR/snippets.custom.yaml" ] && [ -f "$SCRIPT_DIR/snippets.custom.yaml" ]; then
-  rime_mtime=$(stat -f %m "$RIME_DIR/snippets.custom.yaml" 2>/dev/null || echo 0)
-  repo_mtime=$(stat -f %m "$SCRIPT_DIR/snippets.custom.yaml" 2>/dev/null || echo 0)
+  rime_mtime=$(get_file_mtime "$RIME_DIR/snippets.custom.yaml")
+  repo_mtime=$(get_file_mtime "$SCRIPT_DIR/snippets.custom.yaml")
   if [ "$rime_mtime" -gt "$repo_mtime" ]; then
     cp -f "$RIME_DIR/snippets.custom.yaml" "$SCRIPT_DIR/snippets.custom.yaml"
   fi
@@ -504,15 +533,19 @@ fi
 VAULT_PASS=$(get_vault_pass || true)
 if [ -n "$VAULT_PASS" ]; then
   export RIME_VAULT_PASS="$VAULT_PASS"
-  TMP_TAR="/tmp/rime_vault_$$.tar.gz"
-  tar -czf "$TMP_TAR" -C "$SCRIPT_DIR" custom_phrase.txt snippets.custom.yaml sync 2>/dev/null || true
+  TMP_TAR="$(mktemp "${TMPDIR:-/tmp}/rime_vault_XXXXXX.tar.gz")"
+  USER_FILES=()
+  for uf in "$SCRIPT_DIR"/*.user.yaml "$SCRIPT_DIR"/.rime_profile; do
+    [ -f "$uf" ] && USER_FILES+=("$(basename "$uf")")
+  done
+  tar -czf "$TMP_TAR" -C "$SCRIPT_DIR" custom_phrase.txt snippets.custom.yaml "${USER_FILES[@]}" sync 2>/dev/null || true
   if [ -f "$TMP_TAR" ]; then
     openssl enc -aes-256-cbc -salt -pbkdf2 -pass env:RIME_VAULT_PASS -in "$TMP_TAR" -out "$SCRIPT_DIR/vault.enc" 2>/dev/null || \
-    openssl enc -aes-256-cbc -salt -pbkdf2 -pass "pass:$VAULT_PASS" -in "$TMP_TAR" -out "$SCRIPT_DIR/vault.enc" 2>/dev/null || \
     echo "$VAULT_PASS" | openssl enc -aes-256-cbc -salt -pbkdf2 -pass stdin -in "$TMP_TAR" -out "$SCRIPT_DIR/vault.enc" 2>/dev/null || true
     rm -f "$TMP_TAR"
     echo -e "${GREEN}🔒 隐私短语、私有片段与自造词已成功通过 AES-256 加密保护 (vault.enc)！${NC}"
   fi
+  unset RIME_VAULT_PASS
 fi
 
 # 5. 提交并推送到 GitHub (明文短语、私有片段与词频由 .gitignore 拦截，仅推送密文)

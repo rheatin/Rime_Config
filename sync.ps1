@@ -113,7 +113,7 @@ function Invoke-ThreeWaySnippetMerge {
         Get-Content $path -Encoding UTF8 -ErrorAction SilentlyContinue | ForEach-Object {
             $raw = $_
             $s = $raw.Trim()
-            if ($s.StartsWith("/") -and ($s -match '^"?(/\w+)"?:\s*$')) {
+            if ($s.StartsWith("/") -and ($s -match '^"?(/[a-zA-Z0-9_-]+)"?:\s*(#.*)?$')) {
                 if ($curT -and $curL.Count -gt 0) { $b[$curT] = $curL.ToArray() }
                 $curT = $Matches[1]
                 if (-not $o.Contains($curT)) { [void]$o.Add($curT) }
@@ -485,11 +485,7 @@ if ((Test-Path $VaultEnc) -and $OpenSSL) {
             Log-Verbose "调用 OpenSSL 尝试解密 $VaultEnc ..."
             & $OpenSSL enc -d -aes-256-cbc -salt -pbkdf2 -pass env:RIME_VAULT_PASS -in $VaultEnc -out $TempTar 2>$null
             if (-not (Test-Path $TempTar)) {
-                Log-Verbose "env: 传参未产出文件，尝试 pass: 传参..."
-                & $OpenSSL enc -d -aes-256-cbc -salt -pbkdf2 -pass "pass:$VaultPass" -in $VaultEnc -out $TempTar 2>$null
-            }
-            if (-not (Test-Path $TempTar)) {
-                Log-Verbose "pass: 传参未产出文件，尝试 stdin 传参..."
+                Log-Verbose "env: 传参未产出文件，尝试 stdin 传参..."
                 $VaultPass | & $OpenSSL enc -d -aes-256-cbc -salt -pbkdf2 -pass stdin -in $VaultEnc -out $TempTar 2>$null
             }
 
