@@ -46,7 +46,8 @@
       .vscode/
     desc: 常见跨平台通用的 .gitignore 忽略规则
 
-/anc: # comment anchors
+# comment anchors
+/anc:
   - text: |
       > [TODO]: 
       > 注意：这里填写可能引发意外的操作风险。
