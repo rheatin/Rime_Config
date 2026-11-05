@@ -87,14 +87,26 @@ else
 fi
 
 TEMP_FW="$(mktemp -d)"
-if git clone --depth=1 "$TARGET_FRAMEWORK_URL" "$TEMP_FW" 2>/dev/null; then
-  cp -rf "$TEMP_FW/"* "$RIME_DIR/"
-  cp -rf "$TEMP_FW/.git" "$RIME_DIR/" 2>/dev/null || true
-  rm -rf "$TEMP_FW"
-  echo -e "${GREEN}✅ 底座词库更新完成！${NC}"
-else
-  rm -rf "$TEMP_FW"
-  echo -e "${YELLOW}⚠️ 底座网络同步失败，跳过底座更新，继续检查其余组件...${NC}"
+CLONE_SUCCESS=false
+CLONE_URLS=(
+  "$TARGET_FRAMEWORK_URL"
+  "https://ghproxy.net/$TARGET_FRAMEWORK_URL"
+  "https://ghfast.top/$TARGET_FRAMEWORK_URL"
+)
+
+for cu in "${CLONE_URLS[@]}"; do
+  if git clone --depth=1 "$cu" "$TEMP_FW" 2>/dev/null; then
+    cp -rf "$TEMP_FW/"* "$RIME_DIR/"
+    cp -rf "$TEMP_FW/.git" "$RIME_DIR/" 2>/dev/null || true
+    echo -e "${GREEN}✅ 底座词库更新完成！${NC}"
+    CLONE_SUCCESS=true
+    break
+  fi
+done
+
+rm -rf "$TEMP_FW" 2>/dev/null || true
+if [ "$CLONE_SUCCESS" = false ]; then
+  echo -e "${YELLOW}⚠️ 底座网络同步失败，保留本地现存词库继续检查其余组件...${NC}"
 fi
 
 # 3. 追更万象语言模型 (若用户启用)

@@ -280,26 +280,65 @@ fi
 
 mkdir -p "$RIME_DIR"
 TEMP_FRAMEWORK="$(mktemp -d)"
+FRAMEWORK_ZIP="$(mktemp "${TMPDIR:-/tmp}/rime_fw_XXXXXX.zip")"
+EXTRACT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/rime_fw_extract_XXXXXX")"
+CLONE_SUCCESS=false
 
-if git clone --depth=1 "$TARGET_FRAMEWORK_URL" "$TEMP_FRAMEWORK" 2>/dev/null; then
-  echo -e "${BLUE}📥 正在应用最新方案词库到 $RIME_DIR...${NC}"
-  cp -rf "$TEMP_FRAMEWORK/"* "$RIME_DIR/"
-  cp -rf "$TEMP_FRAMEWORK/.git" "$RIME_DIR/" 2>/dev/null || true
-  rm -rf "$TEMP_FRAMEWORK"
-  echo -e "${GREEN}✅ 方案底座词库同步完成！${NC}"
-else
-  echo -e "${YELLOW}⚠️ Git 克隆失败，尝试通过 GitHub Zip 压缩包同步...${NC}"
-  ZIP_FALLBACK_URL="${TARGET_FRAMEWORK_URL%.git}/archive/refs/heads/main.zip"
-  FRAMEWORK_ZIP="$(mktemp "${TMPDIR:-/tmp}/rime_fw_XXXXXX.zip")"
-  EXTRACT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/rime_fw_extract_XXXXXX")"
-  if curl -fsSL "$ZIP_FALLBACK_URL" -o "$FRAMEWORK_ZIP" 2>/dev/null || \
-     curl -fsSL "${TARGET_FRAMEWORK_URL%.git}/archive/refs/heads/master.zip" -o "$FRAMEWORK_ZIP" 2>/dev/null; then
-    unzip -qo "$FRAMEWORK_ZIP" -d "$EXTRACT_DIR"
-    cp -rf "$EXTRACT_DIR"/*/* "$RIME_DIR/"
-    rm -rf "$FRAMEWORK_ZIP" "$EXTRACT_DIR"
-    echo -e "${GREEN}✅ 方案底座解压同步完成！${NC}"
+CLONE_URLS=(
+  "$TARGET_FRAMEWORK_URL"
+  "https://ghproxy.net/$TARGET_FRAMEWORK_URL"
+  "https://ghfast.top/$TARGET_FRAMEWORK_URL"
+)
+
+for cu in "${CLONE_URLS[@]}"; do
+  echo -e "   正在尝试拉取底座: $cu"
+  if git clone --depth=1 "$cu" "$TEMP_FRAMEWORK" 2>/dev/null; then
+    echo -e "${BLUE}📥 正在应用最新方案词库到 $RIME_DIR...${NC}"
+    cp -rf "$TEMP_FRAMEWORK/"* "$RIME_DIR/"
+    cp -rf "$TEMP_FRAMEWORK/.git" "$RIME_DIR/" 2>/dev/null || true
+    echo -e "${GREEN}✅ 方案底座词库同步完成！${NC}"
+    CLONE_SUCCESS=true
+    break
+  fi
+done
+
+if [ "$CLONE_SUCCESS" = false ]; then
+  echo -e "${YELLOW}⚠️ Git 克隆受阻，尝试通过镜像压缩包拉取...${NC}"
+  ZIP_URLS=(
+    "https://ghproxy.net/${TARGET_FRAMEWORK_URL%.git}/archive/refs/heads/master.zip"
+    "https://ghfast.top/${TARGET_FRAMEWORK_URL%.git}/archive/refs/heads/master.zip"
+    "${TARGET_FRAMEWORK_URL%.git}/archive/refs/heads/master.zip"
+    "https://ghproxy.net/${TARGET_FRAMEWORK_URL%.git}/archive/refs/heads/main.zip"
+  )
+  for zu in "${ZIP_URLS[@]}"; do
+    if curl -fL --retry 3 --retry-delay 2 "$zu" -o "$FRAMEWORK_ZIP" 2>/dev/null; then
+      if python3 -c "
+import zipfile, os, sys
+try:
+    with zipfile.ZipFile('$FRAMEWORK_ZIP', 'r') as z:
+        z.extractall('$EXTRACT_DIR')
+    sys.exit(0)
+except Exception:
+    sys.exit(1)
+" 2>/dev/null; then
+        cp -rf "$EXTRACT_DIR"/*/* "$RIME_DIR/" 2>/dev/null || true
+        echo -e "${GREEN}✅ 方案底座解压同步完成！${NC}"
+        CLONE_SUCCESS=true
+        break
+      fi
+      rm -f "$FRAMEWORK_ZIP"
+    fi
+  done
+fi
+
+rm -rf "$TEMP_FRAMEWORK" "$FRAMEWORK_ZIP" "$EXTRACT_DIR" 2>/dev/null || true
+
+if [ "$CLONE_SUCCESS" = false ]; then
+  if [ -f "$RIME_DIR/rime_frost.schema.yaml" ] || [ -f "$RIME_DIR/rime_ice.schema.yaml" ]; then
+    echo -e "${YELLOW}⚠️ 底座网络同步失败，检测到本地已有可用词库，保留现存词库继续执行！${NC}"
   else
-    echo -e "${YELLOW}⚠️ 底座网络拉取受阻，跳过官方底座更新，继续执行...${NC}"
+    echo -e "${RED}❌ 底座词库拉取失败，请检查网络连接或开启代理后重试。${NC}"
+    exit 1
   fi
 fi
 
