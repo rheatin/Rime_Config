@@ -15,6 +15,23 @@ Stop-Process -Name "WeaselDeployer" -Force -ErrorAction SilentlyContinue
 Stop-Process -Name "WeaselServer" -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 1
 
+$PSScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
+if ($PSScriptDir -and (Test-Path (Join-Path $PSScriptDir ".git")) -and (-not $env:RIME_ALREADY_UPDATED)) {
+    Write-Host "📡 检测到本地已有 Git 仓库，正在拉取最新代码..." -ForegroundColor Cyan
+    try {
+        Push-Location $PSScriptDir
+        $pullOut = (& git pull --no-rebase origin main 2>&1) | Out-String
+        Pop-Location
+        if ($LASTEXITCODE -eq 0 -and $pullOut -notmatch "Already up to date" -and ($pullOut -match "Updating|Fast-forward")) {
+            Write-Host "✅ 已成功拉取最新代码！正在重新载入最新安装脚本..." -ForegroundColor Green
+            $env:RIME_ALREADY_UPDATED = "true"
+            $PsExe = if (Get-Command pwsh -ErrorAction SilentlyContinue) { "pwsh.exe" } else { "powershell.exe" }
+            & $PsExe -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath @args
+            exit 0
+        }
+    } catch {}
+}
+
 $RimeDir = Join-Path $env:APPDATA "Rime"
 $PermanentConfigDir = Join-Path $env:USERPROFILE "Rime_Config"
 

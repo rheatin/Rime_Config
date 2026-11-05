@@ -32,6 +32,15 @@ FALLBACK_MOE_SHA256="bbf8fb188a88d84310457f65f3c2ebcec692c5371087a1f6589eab8b923
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo "")"
 TEMP_DIR=""
 
+# 1.0 自更新自愈机制：若本地已有 Git 仓库，先拉取最新版本并重新载入最新脚本执行
+if [ -d "$SCRIPT_DIR/.git" ] && [ "${RIME_ALREADY_UPDATED:-false}" != "true" ]; then
+  echo -e "${BLUE}📡 检测到本地已有 Git 仓库，正在拉取最新代码...${NC}"
+  if git -C "$SCRIPT_DIR" pull --no-rebase origin main 2>/dev/null; then
+    export RIME_ALREADY_UPDATED=true
+    exec bash "$SCRIPT_DIR/$(basename "$0")" "$@"
+  fi
+fi
+
 if [ -z "$RIME_REPO_URL" ] && [ -d "$SCRIPT_DIR/.git" ]; then
   DETECTED_URL="$(git -C "$SCRIPT_DIR" remote get-url origin 2>/dev/null || true)"
   [ -n "$DETECTED_URL" ] && REPO_URL="$DETECTED_URL"
@@ -553,7 +562,9 @@ if [ "$PLATFORM" = "macos" ]; then
   mkdir -p "$LAUNCH_AGENT_DIR"
   
   TARGET_REPO_DIR="$HOME/Rime_Config"
-  if [ ! -d "$TARGET_REPO_DIR" ]; then
+  if [ -d "$TARGET_REPO_DIR/.git" ]; then
+    git -C "$TARGET_REPO_DIR" pull --no-rebase origin main 2>/dev/null || true
+  elif [ ! -d "$TARGET_REPO_DIR" ]; then
     git clone "$REPO_URL" "$TARGET_REPO_DIR" 2>/dev/null || true
   fi
   chmod +x "$TARGET_REPO_DIR/sync.sh" 2>/dev/null || true
