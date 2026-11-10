@@ -47,7 +47,7 @@ patch:
     text_orientation: horizontal
     candidate_list_layout: linear
     translucency: true                     # 磨砂毛玻璃
-    inline_preedit: false                  # 关闭行内预编辑：拼音显示在独立候选小窗内，彻底杜绝所有软件光标死锁冲突！
+    inline_preedit: true                   # 开启行内预编辑：拼音直接嵌入光标处，解决浏览器地址栏退格清空问题
     corner_radius: 10                      # 外框圆角
     hilited_corner_radius: 6               # 选中胶囊圆角
     border_height: 6                       # 上下呼吸边距
