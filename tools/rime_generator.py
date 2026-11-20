@@ -187,8 +187,9 @@ patch:
   # 英文词典权重 (退格时不丢词)
   "melt_eng/initial_quality": 2
 
-  # 空码（无候选词）时不自动整段清空，保留输入码，允许用户按退格键逐步回退修改
-  "speller/auto_clear": manual
+  # 空码（无候选词）时永不自动清空：刻意不设置 speller/auto_clear，
+  # 保持引擎默认 kClearNone。（若设为 manual，引擎会在按下下一个键前、
+  # 缓冲区仍无候选时清空整个输入码，导致输入英文如 ikura 到一半时前面部分消失。）
 """
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
     with open(out_path, 'w', encoding='utf-8') as f:
